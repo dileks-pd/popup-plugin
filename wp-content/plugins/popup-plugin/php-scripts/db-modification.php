@@ -1,25 +1,28 @@
 <?php
 
+if (inset($_POST['name_col'])&&$_POST['phone_col']&&$_POST['email_col']){
 // the code for creating a connection with the database
   $servername = "dileks-air";  
   $username = "root";  
   $password = "root";
-  $table = "form_data";
-  $connection = mysqli_connect ($servername , $username , $password, $table) or die("unable to connect to host");  
+  $base = "form_data"; //база
+  $db_table = "contacts";
+  $connection = mysqli_connect ($servername , $username , $password, $base) or die("unable to connect to host");  
   // $sql = mysqli_select_db ('test', $connection) or die("unable to connect to database"); 
 
-  $name =  $_REQUEST['name_col'];
-  // $phone =  $_REQUEST['phone_col'];
+  $name =  $_POST['name_col'];
+  $phone = $_POST['phone_col'];
+  $email = $_POST['email_col'];
 
-  $sql = "INSERT INTO contacts (name_col) VALUES ('$name')";
 
-  // if ($connection == false){
-  //   print("Ошибка: Невозможно подключиться к MySQL " . mysqli_connect_error());
-  // }
-  // else {
-  //   print("Соединение установлено успешно");
-  //   mysqli_query($connection, $sql);
-  // }
+$data = array( 'name' => $name, 'phone' => $phone, 'email' => $email); 
+        // Подготавливаем SQL-запрос
+        $query = $db->prepare("INSERT INTO $db_table (name, phone, email) values (:name, :phone, :email)");
+        // Выполняем запрос с данными
+        $query->execute($data);
+
+
+ // $sql = "INSERT INTO contacts (name, phone, email) VALUES ('$name', '$phone', '$email')";
 
   if(mysqli_query($connection, $sql)) {
     echo "Success";
@@ -69,5 +72,5 @@
           
         mysqli_close($connection);
         // print('test_finish');
-          
+          }
         ?>
