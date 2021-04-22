@@ -35,9 +35,9 @@ function add_popup_form( $title ) {
 
             <label for="input1" name='name_col'>Поле1</label>
             <input type="text" id="smth">
-            <!-- <label for="input2" name='phone'>Поле2</label>
-            <input type="text" id="smth">
-            <label for="input3" name='email'>Поле3</label>
+            <!-- <label for="input2" name='phone_col'>Поле2</label>
+            <input type="text" id="smth">  -->
+            <!-- <label for="input3" name='email'>Поле3</label>
             <input type="text" id="smth"> -->
             <button type="submit">отправить</button>
           </form>

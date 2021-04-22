@@ -9,7 +9,9 @@
   // $sql = mysqli_select_db ('test', $connection) or die("unable to connect to database"); 
 
   $name =  $_REQUEST['name_col'];
-  $sql = "INSERT INTO contacts VALUES ($name)";
+  // $phone =  $_REQUEST['phone_col'];
+
+  $sql = "INSERT INTO contacts (name_col) VALUES ('$name')";
 
   // if ($connection == false){
   //   print("Ошибка: Невозможно подключиться к MySQL " . mysqli_connect_error());
