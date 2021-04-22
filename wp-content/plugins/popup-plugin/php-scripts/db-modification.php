@@ -8,16 +8,25 @@
   $connection = mysqli_connect ($servername , $username , $password, $table) or die("unable to connect to host");  
   // $sql = mysqli_select_db ('test', $connection) or die("unable to connect to database"); 
 
-  if ($connection == false){
-    print("Ошибка: Невозможно подключиться к MySQL " . mysqli_connect_error());
-}
-else {
-    print("Соединение установлено успешно");
-}
+  $name =  $_REQUEST['name_col'];
+  $sql = "INSERT INTO contacts VALUES ($name)";
+
+  // if ($connection == false){
+  //   print("Ошибка: Невозможно подключиться к MySQL " . mysqli_connect_error());
+  // }
+  // else {
+  //   print("Соединение установлено успешно");
+  //   mysqli_query($connection, $sql);
+  // }
+
+  if(mysqli_query($connection, $sql)) {
+    echo "Success";
+  } else {
+    echo "Error of querie " . $sql . "<br>" . mysqli_error($connection);
+  }
 //fetching data from the fields
   // $first_name =  $_REQUEST['first_name'];
   // $last_name = $_REQUEST['last_name'];
-  $name =  $_REQUEST['name_col'];
   // $phone = $_REQUEST['phone'];
   // $email = $_REQUEST['email'];
 
@@ -46,7 +55,7 @@ else {
 
         // $sql = "INSERT INTO contacts (id_col, name_col, phone_col, email_col) VALUES (1, $name, $phone, $email)";
         // $sql = "INSERT INTO contacts (id_col, name_col) VALUES (1, $name)";
-        $sql = "INSERT INTO contacts VALUES ($name)";
+        // $sql = "INSERT INTO contacts VALUES ($name)";
 
 
 
@@ -54,7 +63,7 @@ else {
 
            // INSERT INTO dataTable (date, supplierName, warehouseInfo, productInfo, quantityInfo, sumInfo) VALUES (?,?,?,?,?,?)
 
-  mysqli_query($connection, $sql);
+  // mysqli_query($connection, $sql);
           
         mysqli_close($connection);
         // print('test_finish');

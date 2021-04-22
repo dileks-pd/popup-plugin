@@ -48,8 +48,8 @@ function add_popup_form( $title ) {
 HTML;
 }
 
-$value = 'str';
-echo($value);
+// $value = 'str';
+// echo($value);
 
 add_action( 'the_title', 'add_popup_form' );
 add_action('plugin_loaded', 'add_popup_styles');
