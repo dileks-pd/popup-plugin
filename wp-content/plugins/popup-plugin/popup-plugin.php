@@ -22,7 +22,7 @@
   License URI: http://www.gnu.org/licenses/gpl-2.0.txt
  */
 
-// include 'php-scripts/db-modification.php';
+include 'php-scripts/db-modification.php';
 //  include 'db-connection.php'
 
 function add_popup_form( $title ) {
@@ -30,15 +30,15 @@ function add_popup_form( $title ) {
     <html>
     <body>
         <div id="overlay">
-          <form id="modal-container" method="post" action="php-scripts/db-modification.php">
+          <form id="modal-container" method="post" action="popup-plugin.php">
           <!-- <form id="modal-container" method="post" action="/"> -->
 
-            <label for="input1" name='name'>Поле1</label>
+            <label for="input1" name='name_col'>Поле1</label>
             <input type="text" id="smth">
-            <label for="input2" name='phone'>Поле2</label>
+            <!-- <label for="input2" name='phone'>Поле2</label>
             <input type="text" id="smth">
             <label for="input3" name='email'>Поле3</label>
-            <input type="text" id="smth">
+            <input type="text" id="smth"> -->
             <button type="submit">отправить</button>
           </form>
         </div>
@@ -65,7 +65,7 @@ wp_enqueue_script('popupJS');
 
 // $data_count = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->wp_posts;" );
 // echo '<p>Данные: ' . $ID . '</p>';
-echo '<p>Данные: ' . "somedata" . '</p>';
+// echo '<p>Данные: ' . "somedata" . '</p>';
 
 
 ?>

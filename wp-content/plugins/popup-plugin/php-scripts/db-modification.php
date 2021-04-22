@@ -17,9 +17,9 @@ else {
 //fetching data from the fields
   // $first_name =  $_REQUEST['first_name'];
   // $last_name = $_REQUEST['last_name'];
-  $name =  $_REQUEST['name'];
-  $phone = $_REQUEST['phone'];
-  $email = $_REQUEST['email'];
+  $name =  $_REQUEST['name_col'];
+  // $phone = $_REQUEST['phone'];
+  // $email = $_REQUEST['email'];
 
   
         // servername => localhost
@@ -44,8 +44,11 @@ else {
         // Performing insert query execution
         // here our table name is college
 
-        print($name);
-        $sql = "INSERT INTO contacts (id_col, name_col, phone_col, email_col) VALUES ('1', $name, $phone, $email)";
+        // $sql = "INSERT INTO contacts (id_col, name_col, phone_col, email_col) VALUES (1, $name, $phone, $email)";
+        // $sql = "INSERT INTO contacts (id_col, name_col) VALUES (1, $name)";
+        $sql = "INSERT INTO contacts VALUES ($name)";
+
+
 
         // $sql = "INSERT INTO contacts (Id, Name, Phone, Email) VALUES (7, $name, $phone, $email)";
 
@@ -54,6 +57,6 @@ else {
   mysqli_query($connection, $sql);
           
         mysqli_close($connection);
-        print('test_finish');
+        // print('test_finish');
           
         ?>
