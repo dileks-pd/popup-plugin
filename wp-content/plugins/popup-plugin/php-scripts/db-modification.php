@@ -12,8 +12,16 @@
   $phone =  $_REQUEST['phone_col'];
   $email =  $_REQUEST['email_col'];
 
+  if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $sql = "INSERT INTO contacts (name_col, phone_col, email_col) VALUES ('$name', '$phone', '$email')";
+    if(mysqli_query($connection, $sql)) {
+      echo "Success";
+    } else {
+    echo "Error of querie " . $sql . "<br>" . mysqli_error($connection);
+    }
+  }
 
-  $sql = "INSERT INTO contacts (name_col, phone_col, email_col) VALUES ('$name', '$phone', '$email')";
+  // $sql = "INSERT INTO contacts (name_col, phone_col, email_col) VALUES ('$name', '$phone', '$email')";
 
   // if ($connection == false){
   //   print("Ошибка: Невозможно подключиться к MySQL " . mysqli_connect_error());
@@ -23,11 +31,11 @@
   //   mysqli_query($connection, $sql);
   // }
 
-  if(mysqli_query($connection, $sql)) {
-    echo "Success";
-  } else {
-    echo "Error of querie " . $sql . "<br>" . mysqli_error($connection);
-  }
+  // if(mysqli_query($connection, $sql)) {
+  //   echo "Success";
+  // } else {
+  //   echo "Error of querie " . $sql . "<br>" . mysqli_error($connection);
+  // }
 //fetching data from the fields
   // $first_name =  $_REQUEST['first_name'];
   // $last_name = $_REQUEST['last_name'];
