@@ -255,7 +255,6 @@ namespace WPDataAccess\List_Table {
 
 		}
 
-
 		/**
 		 * Override column_default
 		 *
@@ -298,28 +297,18 @@ namespace WPDataAccess\List_Table {
 			}
 
 			if ( 'table_rows' === $column_name ) {
-				if ( 'InnoDB' === $item['engine'] ) {
-					// Don't count if row_count_estimate = true
+				if ( 'innodb' === strtolower( $item['engine'] ) || 'view' === strtolower( $item['table_type'] ) ) {
 					$settings_db = WPDA_Table_Settings_Model::query( $item['table_name'], $this->schema_name );
-					if ( isset( $settings_db[0]['wpda_table_settings'] ) ) {
-						$settings_from_db = json_decode( $settings_db[0]['wpda_table_settings'] );
-						if (
-							isset( $settings_from_db->table_settings->row_count_estimate ) &&
-							$settings_from_db->table_settings->row_count_estimate !== null
-						) {
-							if ( $settings_from_db->table_settings->row_count_estimate ) {
-								return stripslashes( '~' . $item[ $column_name ] );
-							} else {
-								return $this->count_rows( $item['table_name'] );
-							}
-						}
-					}
-
-					$innodb_count = WPDA::get_option( WPDA::OPTION_BE_INNODB_COUNT );
-					if ( $item[ $column_name ] > $innodb_count ) {
-						return stripslashes( '~' . $item[ $column_name ] );
+					if ( isset( $settings_db[0]['wpda_table_settings'] ) && '' !== $settings_db[0]['wpda_table_settings'] ) {
+						$settings = json_decode( $settings_db[0]['wpda_table_settings'] );
 					} else {
-						return $this->count_rows( $item['table_name'] );
+						$settings = (object)null;
+					}
+					$row_count_estimate = WPDA::get_row_count_estimate( $this->schema_name, $item['table_name'], $settings );
+					if ( ! $row_count_estimate['do_real_count'] ) {
+						return stripslashes( '~' . $row_count_estimate['row_count'] );
+					} else {
+						return stripslashes( $this->count_rows( $item['table_name'] ) );
 					}
 				} else {
 					return stripslashes( $item[ $column_name ] );
@@ -655,7 +644,7 @@ namespace WPDataAccess\List_Table {
 			}
 
 			global $wpdb;
-			$database = sanitize_text_field( wp_unslash( $_REQUEST['database'] ) ); // input var okay.
+			$database = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['database'] ) ) ); // input var okay.
 
 			if ( 'rdb:' === substr( $database, 0, 4) ) {
 				// Delete remote database
@@ -879,7 +868,7 @@ namespace WPDataAccess\List_Table {
 					return;
 				}
 
-				$database = sanitize_text_field( wp_unslash( $_REQUEST['local_database'] ) ); // input var okay.
+				$database = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['local_database'] ) ) ); // input var okay.
 
 				global $wpdb;
 				if ( false === $wpdb->query( "create database `$database`" ) ) { // db call ok; no-cache ok.
@@ -1293,7 +1282,7 @@ namespace WPDataAccess\List_Table {
 		protected function process_bulk_action_optimize_table() {
 
 			if ( isset( $_REQUEST['optimize_table_name'] ) ) {
-				$optimize_table_name = sanitize_text_field( wp_unslash( $_REQUEST['optimize_table_name'] ) ); // input var okay.
+				$optimize_table_name = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['optimize_table_name'] ) ) ); // input var okay.
 
 				if ( $this->process_bulk_action_check_wpnonce( "wpda-optimize-$optimize_table_name", '_wpnonce' ) ) {
 					$dbo_type = $this->get_dbo_type( $optimize_table_name );
@@ -1442,7 +1431,7 @@ namespace WPDataAccess\List_Table {
 				wp_die( sprintf( __( 'ERROR - Remote database %s not available', 'wp-data-access' ), $this->schema_name ) );
 			}
 
-			return $wpdadb->query( "rename table `$rename_table_name_old` to `$rename_table_name_new`" ); // db call ok; no-cache ok.
+			return $wpdadb->query( "rename table `" . str_replace( '`', '', $rename_table_name_old ) . "` to `" . str_replace( '`', '', $rename_table_name_new ) . "`" ); // db call ok; no-cache ok.
 		}
 
 		/**
@@ -1546,6 +1535,9 @@ namespace WPDataAccess\List_Table {
 			if ( null === $wpdadb ) {
 				wp_die( sprintf( __( 'ERROR - Remote database %s not available', 'wp-data-access' ), $this->schema_name ) );
 			}
+
+			$copy_table_name_src = str_replace( '`', '', $copy_table_name_src );
+			$copy_table_name_dst = str_replace( '`', '', $copy_table_name_dst );
 
 			if ( 'on' === $include_data ) {
 				$result = $wpdadb->query( "create table `$copy_table_name_dst` like `$copy_table_name_src`" ); // db call ok; no-cache ok.
@@ -1916,7 +1908,7 @@ namespace WPDataAccess\List_Table {
 				wp_die( sprintf( __( 'ERROR - Remote database %s not available', 'wp-data-access' ), $this->schema_name ) );
 			}
 
-			return $wpdadb->query( "drop view `$view_name`" ); // db call ok; no-cache ok.
+			return $wpdadb->query( "drop view `". str_replace( '`', '', $view_name ) . "`" ); // db call ok; no-cache ok.
 		}
 
 		/**
@@ -1948,7 +1940,7 @@ namespace WPDataAccess\List_Table {
 				return false;
 			}
 
-			return $wpdadb->query( "drop table `$table_name`" ); // db call ok; no-cache ok.
+			return $wpdadb->query( "drop table `" . str_replace( '`', '', $table_name ) . "`" ); // db call ok; no-cache ok.
 		}
 
 		/**
@@ -2032,7 +2024,7 @@ namespace WPDataAccess\List_Table {
 				return false;
 			}
 
-			return $wpdadb->query( "truncate table `$table_name`" ); // db call ok; no-cache ok.
+			return $wpdadb->query( "truncate table `" . str_replace( '`', '', $table_name ) . "`" ); // db call ok; no-cache ok.
 		}
 
 		/**

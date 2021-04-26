@@ -411,6 +411,10 @@ namespace WPDataAccess\Design_Table {
 				$this->action2 = 'new'; // Design new table from scratch.
 			}
 
+			// Remove backticks from schema and table name to prevent sql injection
+			$this->wpda_schema_name = str_replace( '`', '', $this->wpda_schema_name );
+			$this->wpda_table_name  = str_replace( '`', '', $this->wpda_table_name );
+
 			if ( null !== $this->wpda_table_name && null !== $this->wpda_schema_name ) {
 				// Check if table name already exists in database.
 				if ( $this->wpda_schema_name === $wpdb->dbname ) {
@@ -492,15 +496,9 @@ namespace WPDataAccess\Design_Table {
 		 * @since 2.0.14
 		 */
 		private function does_table_exist() {
-			if ( 'rdb:' !== substr( $this->wpda_schema_name, 0, 4) ) {
-				$wpda_dictionary_exists = new WPDA_Dictionary_Exist( $this->wpda_schema_name, $this->wpda_table_name );
-				$this->table_exists     = $wpda_dictionary_exists->plain_table_exists();
-				if ( ! $this->table_exists ) {
-					$this->real_table   = null;
-					$this->real_indexes = null;
-				}
-			} else {
-				// No remote checks
+			$wpda_dictionary_exists = new WPDA_Dictionary_Exist( $this->wpda_schema_name, $this->wpda_table_name );
+			$this->table_exists     = $wpda_dictionary_exists->plain_table_exists();
+			if ( ! $this->table_exists ) {
 				$this->real_table   = null;
 				$this->real_indexes = null;
 			}
@@ -577,7 +575,7 @@ namespace WPDataAccess\Design_Table {
 				}
 				if ( $drop_real_index || ! $design_index_found ) {
 					$this->create_table_statement .=
-						"DROP INDEX `{$real_index['index_name']}` ON `{$this->wpda_table_name}`;" . self::NEW_LINE;
+						"DROP INDEX `" . str_replace( '`', '', $real_index['index_name'] ) . "` ON `{$this->wpda_table_name}`;" . self::NEW_LINE;
 				}
 			}
 			if ( '' !== $this->create_table_statement ) {
@@ -622,7 +620,7 @@ namespace WPDataAccess\Design_Table {
 					// Drop column
 					array_push(
 						$this->alter_table_statement,
-						"DROP COLUMN `{$real_column->column_name}`," . self::NEW_LINE
+						'DROP COLUMN `' . str_replace( '`', '', $real_column->column_name ) . '`,' . self::NEW_LINE
 					);
 				}
 
@@ -653,7 +651,7 @@ namespace WPDataAccess\Design_Table {
 							"ALTER TABLE `{$this->wpda_table_name}` ADD PRIMARY KEY  ";
 						foreach ( $create_keys_design as $key ) {
 							$alter_table_statement .= $key === reset( $create_keys_design ) ? '(' : ',';
-							$alter_table_statement .= "`$key`";
+							$alter_table_statement .= '`' . str_replace( '`', '', $key ) . '`';
 						}
 						$alter_table_statement .= ');' . self::NEW_LINE . self::NEW_LINE;
 
@@ -693,7 +691,7 @@ namespace WPDataAccess\Design_Table {
 					$column_names_array           = explode( ',', $design_index->column_names );
 					$column_names                 = '`' . implode( '`,`', $column_names_array ) . '`';
 					$this->create_table_statement .=
-						"CREATE $unique INDEX `{$design_index->index_name}` ON `{$this->wpda_table_name}` ($column_names);" .
+						"CREATE $unique INDEX `" . str_replace( '`', '', $design_index->index_name ) . "` ON `{$this->wpda_table_name}` ($column_names);" .
 						self::NEW_LINE;
 				}
 			}
@@ -709,7 +707,7 @@ namespace WPDataAccess\Design_Table {
 		 *
 		 */
 		private function alter_table_column( $design_column, $keyword ) {
-			$alter_table_statement = "$keyword COLUMN `{$design_column->column_name}` ";
+			$alter_table_statement = "$keyword COLUMN `" . str_replace( '`', '', $design_column->column_name ) . '` ';
 			$alter_table_statement .= $design_column->data_type;
 			if ( '' !== $design_column->max_length ) {
 				$alter_table_statement .= "($design_column->max_length)";
@@ -796,7 +794,7 @@ namespace WPDataAccess\Design_Table {
 			$create_keys = [];
 			foreach ( $this->wpda_table_design->table as $row ) {
 				$this->create_table_statement .= $row === reset( $this->wpda_table_design->table ) ? '(' : ',';
-				$this->create_table_statement .= "`{$row->column_name}`";
+				$this->create_table_statement .= '`' . str_replace( '`', '', $row->column_name ) . '`';
 				$this->create_table_statement .= ' ';
 				$this->create_table_statement .= $row->data_type;
 				if ( '' !== $row->max_length ) {
@@ -826,7 +824,7 @@ namespace WPDataAccess\Design_Table {
 				$this->create_table_statement .= ',PRIMARY KEY ';
 				foreach ( $create_keys as $key ) {
 					$this->create_table_statement .= $key === reset( $create_keys ) ? '(' : ',';
-					$this->create_table_statement .= "`$key`";
+					$this->create_table_statement .= '`' . str_replace( '`', '', $key ) . '`';
 				}
 				$this->create_table_statement .= ')';
 				$this->create_table_statement .= self::NEW_LINE;
@@ -1483,8 +1481,11 @@ namespace WPDataAccess\Design_Table {
 				
 				function get_tables() {
 					schema_name = jQuery('#wpda_schema_name_re_list').val();
-					var url = location.pathname + '?action=wpda_get_tables';
-					var data = {wpdaschema_name: schema_name};
+					var url = location.pathname + '?action=wpda_get_tables&hideviews=TRUE';
+					var data = {
+						wpdaschema_name: schema_name,
+						wpda_wpnonce: '<?php echo wp_create_nonce( "wpda-getdata-access" ); ?>'
+					};
 					jQuery.post(
 						url,
 						data,
@@ -1511,7 +1512,7 @@ namespace WPDataAccess\Design_Table {
 							title="<?php echo __( 'List', 'wp-data-access' ); ?>"
 					></a>
 					<span><?php echo __( 'Data Designer', 'wp-data-access' ); ?></span>
-					<a href="https://wpdataaccess.com/docs/documentation/data-designer/" target="_blank"
+					<a href="https://wpdataaccess.com/docs/documentation/data-designer/getting-started/" target="_blank"
 					   title="Plugin Help - open a new tab or window" class="wpda_tooltip">
 						<span class="material-icons" style="font-size: 26px; vertical-align: sub;">help</span>
 					</a>
@@ -1716,7 +1717,7 @@ namespace WPDataAccess\Design_Table {
 				}
 				?>
 				<div style="text-align:right">
-					<a href="https://wpdataaccess.com/docs/documentation/data-designer/overview/"
+					<a href="https://wpdataaccess.com/docs/documentation/data-designer/getting-started/"
 					   target="_blank" style="text-decoration:none">
 						<span class="material-icons wpda_icon_on_button">help_outline</span>
 						What is the difference between a table design and a database table?
@@ -1844,11 +1845,7 @@ namespace WPDataAccess\Design_Table {
 										</a>
 										<?php
 									} else {
-										if ( 'rdb:' === substr( $this->wpda_schema_name, 0, 4) ) {
-											$title = __( 'Remote table: not checked!', 'wp-data-access' );
-										} else {
-											$title = __( 'New table', 'wp-data-access' );
-										}
+										$title = __( 'New table', 'wp-data-access' );
 										?>
 										<span style="vertical-align:-webkit-baseline-middle; cursor:pointer;"
 											  title="<?php echo $title; ?>"
@@ -2578,7 +2575,7 @@ default_generated on update current_timestamp" class="material-icons pointer wpd
 			$suppress = $wpdadb->suppress_errors( true );
 
 			// Index is deleted from table design: drop index
-			$drop_index_statement = "DROP INDEX `$index_name` ON `{$this->wpda_table_name}`";
+			$drop_index_statement = "DROP INDEX `" . str_replace( '`', '', $index_name ) . "` ON `{$this->wpda_table_name}`";
 			if ( $wpdadb->query( $drop_index_statement ) ) {
 				$msg = new WPDA_Message_Box(
 					[
@@ -2636,7 +2633,7 @@ default_generated on update current_timestamp" class="material-icons pointer wpd
 				$column_names_array           = explode( ',', $index->column_names );
 				$column_names                 = '`' . implode( '`,`', $column_names_array ) . '`';
 				$create_index_statement       =
-					"CREATE $unique INDEX `{$index->index_name}` ON `{$this->wpda_table_name}` ($column_names)";
+					"CREATE $unique INDEX `" . str_replace( '`', '', $index->index_name ) . "` ON `{$this->wpda_table_name}` ($column_names)";
 				$this->create_index_statement .= $create_index_statement . ';' . self::NEW_LINE;
 
 				if ( 'show_create_table_script' === $this->action2_posted ) {

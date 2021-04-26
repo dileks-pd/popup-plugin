@@ -32,7 +32,8 @@ function wpda_datatables_ajax_call(
 	table_options_searching, table_options_ordering, table_options_paging, table_options_advanced,
 	pub_id, pub_show_advanced_settings, modal_hyperlinks,
 	filter_field_name, filter_field_value,
-	nl2br, buttons, read_more, calc_estimate
+	nl2br, buttons, read_more, calc_estimate, geo_search, geo_search_options,
+	wpnonce
 ) {
 	/*
 	* display possible values:
@@ -223,6 +224,7 @@ function wpda_datatables_ajax_call(
 			url: wpda_ajax.wpda_ajaxurl,
 			data: function(data) {
 				data.action ="wpda_datatables";
+				data.wpnonce = wpnonce;
 				data.database = database;
 				data.table_name = table_name;
 				data.columns = columns;
@@ -255,6 +257,41 @@ function wpda_datatables_ajax_call(
 							data[key] = return_value[key];
 						}
 					}
+				}
+				if (geo_search!=='') {
+					if (
+						table_options_advanced.wpda_geo &&
+						table_options_advanced.wpda_geo.map_location==="user"
+					) {
+						map_location = "user";
+						if ( wpda_user_coords !== null ) {
+							initial_lat = wpda_user_coords.latitude;
+							initial_lng = wpda_user_coords.longitude;
+						} else {
+							initial_lat = undefined;
+							initial_lng = undefined;
+						}
+					} else {
+						map_location = "fixed";
+						initial_lat = geo_search_options.initial_lat;
+						initial_lng = geo_search_options.initial_lng;
+					}
+					radius = geo_search_options.radius;
+					if (jQuery("#" + table_name + pub_id + "_georange").val()) {
+						radius = jQuery("#" + table_name + pub_id + "_georange").val();
+					}
+					unit = geo_search_options.unit;
+					if (jQuery("#" + table_name + pub_id + "_geounits").val()) {
+						unit = jQuery("#" + table_name + pub_id + "_geounits").val();
+					}
+					geosearch = {
+						map_location: map_location,
+						initial_lat: initial_lat,
+						initial_lng: initial_lng,
+						radius: radius,
+						unit: unit
+					}
+					data.geosearch = geosearch;
 				}
 			},
 			dataSrc: function(data) {
@@ -297,12 +334,57 @@ function wpda_datatables_ajax_call(
 			return (calc_estimate === 'true' ? '~' : '') +  pre;
 		},
 		initComplete: function(settings, json) {
-			if (responsive === 'yes') {
-				hiddenColumns = this.api().columns().responsiveHidden();
-				for (i=0; i<hiddenColumns.length; i++) {
-					if (!hiddenColumns[i]) {
-						hide_header_and_footer_of_hidden_column(table_name, pub_id, i);
+			if (jQueryDataTablesDefaultOptions.wpda_geo) {
+				if ( jQueryDataTablesDefaultOptions.wpda_geo.map_location==="user" ) {
+					wpda_get_user_location(table_name, pub_id);
+				}
+				if (
+					jQueryDataTablesDefaultOptions.wpda_geo.geo_filter &&
+					'after' === jQueryDataTablesDefaultOptions.wpda_geo.geo_filter
+				) {
+					jQuery("#" + table_name + pub_id + "_filter").append(geo_search);
+				} else {
+					jQuery("#" + table_name + pub_id + "_filter").prepend(geo_search);
+				}
+				jQuery("#" + table_name + pub_id + "_wrapper").append(jQuery("#" + table_name + pub_id + "_geocontainer"));
+				jQuery("#" + table_name + pub_id + "_georange").on("change", function() {
+					update_table(table_name, pub_id);
+				});
+				jQuery("#" + table_name + pub_id + "_geounits").on("change", function() {
+					update_table(table_name, pub_id);
+				});
+				jQuery("#" + table_name + pub_id + "_geobutton").on("click", function() {
+					if (
+						jQueryDataTablesDefaultOptions.wpda_geo.map_location==="user" &&
+						wpda_user_coords === null
+					) {
+						alert("Missing user location information");
+					} else {
+						jQuery("#" + table_name + pub_id + "_geocontainer").toggle();
+						wpdaproGeolocationRefreshMap();
 					}
+				});
+				if (
+					jQueryDataTablesDefaultOptions.wpda_geo.map_init &&
+					'open' === jQueryDataTablesDefaultOptions.wpda_geo.map_init
+				) {
+					setTimeout(function(){
+						jQuery("#" + table_name + pub_id + "_geocontainer").toggle();
+						wpdaproGeolocationRefreshMap();
+					}, 100);
+				}
+			}
+
+			if (responsive === 'yes') {
+				try {
+					hiddenColumns = this.api().columns().responsiveHidden();
+					for (i=0; i<hiddenColumns.length; i++) {
+						if (!hiddenColumns[i]) {
+							hide_header_and_footer_of_hidden_column(table_name, pub_id, i);
+						}
+					}
+				} catch(err) {
+					console.log(err);
 				}
 			}
 
@@ -311,6 +393,82 @@ function wpda_datatables_ajax_call(
 			}
 		},
 		drawCallback: function(settings) {
+			if (jQueryDataTablesDefaultOptions.wpda_geo) {
+				showmap = true;
+				if (
+					jQueryDataTablesDefaultOptions.wpda_geo.show_map !== undefined &&
+					jQueryDataTablesDefaultOptions.wpda_geo.show_map === false
+				) {
+					showmap = false;
+				}
+
+				if (showmap) {
+					get_map_data = true;
+					if (
+						jQueryDataTablesDefaultOptions.wpda_geo &&
+						jQueryDataTablesDefaultOptions.wpda_geo.map_location==="user" &&
+						wpda_user_coords === null
+					) {
+						get_map_data = false;
+					}
+
+					if (get_map_data) {
+						table = jQuery("#" + table_name + pub_id).DataTable();
+
+						paging_start = table.page.info().start;
+						paging_length = table.page.info().length;
+						radius = geo_search_options.radius;
+						if (jQuery("#" + table_name + pub_id + "_georange").val()) {
+							radius = jQuery("#" + table_name + pub_id + "_georange").val();
+						}
+						unit = geo_search_options.unit;
+						if (jQuery("#" + table_name + pub_id + "_geounits").val()) {
+							unit = jQuery("#" + table_name + pub_id + "_geounits").val();
+						}
+
+						deleteAllMarkers();
+						popupClose();
+						args = {};
+						args.start = paging_start;
+						args.step = paging_length;
+						args.radius = radius;
+						args.unit = unit;
+						args.msg = settings.json.msg;
+						if (
+							jQueryDataTablesDefaultOptions.wpda_geo &&
+							jQueryDataTablesDefaultOptions.wpda_geo.map_location==="user" &&
+							wpda_user_coords !== null
+						) {
+							args.user_latitude = wpda_user_coords.latitude;
+							args.user_longitude = wpda_user_coords.longitude;
+						}
+						wpdaproGetGeoData(args);
+
+						if (unit==='mile') {
+							jQuery(".wpda_geo_unit").html(" (mi)");
+						} else {
+							jQuery(".wpda_geo_unit").html(" (km)");
+						}
+
+						if (
+							jQueryDataTablesDefaultOptions.wpda_geo.geo_marker_column === 0 ||
+							(
+								jQueryDataTablesDefaultOptions.wpda_geo.geo_marker_column &&
+								!isNaN(jQueryDataTablesDefaultOptions.wpda_geo.geo_marker_column)
+							)
+						) {
+							var labelIndex = 0;
+							for (var i=0; i<table.rows().data().length; i++) {
+								node = jQuery(this.api().cell(i, jQueryDataTablesDefaultOptions.wpda_geo.geo_marker_column).node());
+								marker = '<div class="wpda_geo_map_marker_link"><a href="javascript:void(0)" onclick="popupMarker(\'' + String.fromCharCode(65+labelIndex) + '\')">' + String.fromCharCode(65+labelIndex) + '</a></div>';
+								node.append(marker);
+								labelIndex++;
+							}
+						}
+					}
+				}
+			}
+
 			if (buttons.length > 0) {
 				jQuery("#" + table_name + pub_id).find("td").on("click", function(e) {
 					if (jQuery(this).hasClass("dtr-control")) {
@@ -345,6 +503,8 @@ function wpda_datatables_ajax_call(
 
 	jQuery("#" + table_name + pub_id).addClass('wpda-datatable');
 	jQuery("#" + table_name + pub_id).DataTable(jQueryDataTablesOptions);
+
+	// console.log(jQueryDataTablesOptions);
 
 	if (jQuery("#" + table_name + pub_id + "_more_button").length>0) {
 		// Add load more rows action
@@ -393,4 +553,36 @@ function hide_header_and_footer_of_hidden_column(table_name, pub_id, i) {
 
 	var tr_foot  = jQuery("#" + table_name + pub_id).find('tfoot tr').eq(0);
 	tr_foot.find('th').eq(i).hide().find('td').eq(i).hide();
+}
+
+function update_table(table_name, pub_id) {
+	jQuery("#" + table_name + pub_id).DataTable().draw();
+}
+
+var wpda_user_coords = null;
+function wpda_get_user_location(table_name, pub_id) {
+	if (!navigator.geolocation) {
+		alert("Geolocation is not supported by your browser");
+	} else {
+		navigator.geolocation.getCurrentPosition(
+			function(pos) {
+				if (pos.coords===undefined) {
+					wpda_user_coords = null;
+					alert("ERROR - Could not determine user location");
+				} else {
+					wpda_user_coords = pos.coords;
+					update_table(table_name, pub_id);
+				}
+			},
+			function(err) {
+				wpda_user_coords = null;
+				alert("ERROR - " + err);
+			},
+			{
+				enableHighAccuracy: true,
+				timeout: 5000,
+				maximumAge: 0
+			}
+		);
+	}
 }

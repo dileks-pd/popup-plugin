@@ -313,8 +313,9 @@ namespace WPDataAccess\List_Table {
 		protected $columns_indexed = [];
 
 		// Variables used to store table estimate row count data
-		protected $table_engine  = '';
-		protected $table_rows    = '';
+		protected $table_engine       = '';
+		protected $table_rows         = '';
+		protected $row_count_estimate = [];
 
 		/**
 		 * WPDA_List_Table constructor
@@ -582,11 +583,9 @@ namespace WPDataAccess\List_Table {
 				$this->wpda_table_settings = json_decode( $wpda_table_settings[0]['wpda_table_settings'] );
 			}
 
-			// Get table engine
-			$this->table_engine = WPDA_Dictionary_Lists::get_engine( $this->schema_name, $this->table_name );
-
 			// Get estimated row count
-			$this->table_rows = WPDA::get_row_count_estimate( $this->schema_name, $this->table_name, $this->wpda_table_settings );
+			$this->row_count_estimate = WPDA::get_row_count_estimate( $this->schema_name, $this->table_name, $this->wpda_table_settings );
+			$this->table_rows         = $this->row_count_estimate['row_count'];
 
 			// Get project table settings
 			global $wpda_project_mode;
@@ -1377,19 +1376,29 @@ namespace WPDataAccess\List_Table {
 
 					switch( $this->page ) {
 						case \WP_Data_Access_Admin::PAGE_MAIN:
-							$help_url = 'https://wpdataaccess.com/docs/documentation/data-explorer/';
+							$help_url = 'https://wpdataaccess.com/docs/documentation/data-explorer/getting-started/';
+							$demo_url = '';
+							$tuts_url = '';
 							break;
 						case \WP_Data_Access_Admin::PAGE_DESIGNER:
-							$help_url = 'https://wpdataaccess.com/docs/documentation/data-designer/';
+							$help_url = 'https://wpdataaccess.com/docs/documentation/data-designer/getting-started/';
+							$demo_url = '';
+							$tuts_url = '';
 							break;
 						case \WP_Data_Access_Admin::PAGE_PUBLISHER:
-							$help_url = 'https://wpdataaccess.com/docs/documentation/data-publisher/';
+							$help_url = 'https://wpdataaccess.com/docs/documentation/data-publisher/data-publisher-getting-started/';
+							$demo_url = 'https://wpdataaccess.com/docs/documentation/data-publisher/demos/';
+							$tuts_url = 'https://wpdataaccess.com/docs/documentation/data-publisher/tutorials/';
 							break;
 						case WPDP::PAGE_MAIN:
 							$help_url = '';
+							$demo_url = '';
+							$tuts_url = '';
 							break;
 						default:
 							$help_url = null === $this->help_url ? '' : $this->help_url;
+							$demo_url = '';
+							$tuts_url = '';
 					}
 					?>
 
@@ -1426,6 +1435,20 @@ namespace WPDataAccess\List_Table {
 									\WP_Data_Access_Admin::PAGE_MAIN === $this->page
 							) {
 								WPDA_Repository::whats_new();
+							}
+							if ( '' !== $demo_url ) {
+								?>
+								<a href="<?php echo $demo_url; ?>" target="_blank"
+								   class="wpda_tooltip" title="Demos - opens in a new tab or window">
+								<span class="material-icons" style="font-size: 26px; vertical-align: sub;">desktop_mac</span></a>
+								<?php
+							}
+							if ( '' !== $tuts_url ) {
+								?>
+								<a href="<?php echo $tuts_url; ?>" target="_blank"
+								   class="wpda_tooltip" title="Tutorials - opens in a new tab or window">
+								<span class="material-icons" style="font-size: 26px; vertical-align: sub;">video_library</span></a>
+								<?php
 							}
 							?>
 						</span>
@@ -1981,6 +2004,8 @@ namespace WPDataAccess\List_Table {
 						} else {
 							$querystring = admin_url() . 'admin.php';
 						}
+					} else {
+						$querystring = admin_url() . 'admin.php';
 					}
 					$querystring .= "?action=wpda_export&type=row&mysql_set=off&show_create=off&show_comments=off&wpdaschema_name={$this->schema_name}&table_names={$this->table_name}&_wpnonce=$wp_nonce&format_type=$format_type";
 
@@ -2064,7 +2089,7 @@ namespace WPDataAccess\List_Table {
 		 *
 		 */
 		public function record_count() {
-			if ( $this->table_rows > -1 && '' === $this->where ) {
+			if ( ! $this->row_count_estimate['do_real_count'] && '' === $this->where ) {
 				// Use estimate row count
 				return $this->table_rows;
 			}
@@ -2319,20 +2344,18 @@ namespace WPDataAccess\List_Table {
 		 *
 		 */
 		public function get_sortable_columns() {
-
 			$columns = [];
 
 			// Get column names from result set.
 			if ( $this->items ) {
 				foreach ( $this->items[0] as $key => $value ) {
-
-					$columns[ $key ] = [ $key, false ];
-
+					if ( 'wpda_hyperlink_' !== substr( $key, 0, 15 ) ) {
+						$columns[ $key ] = [ $key, false ];
+					}
 				}
 			}
 
 			return $columns;
-
 		}
 
 		/**
@@ -2632,7 +2655,7 @@ namespace WPDataAccess\List_Table {
 			}
 
 			// Add estimate character if row_count_estimate is enabled
-			$estimate = 'InnoDB' == $this->table_engine && $this->table_rows > -1 ? '~' : '';
+			$estimate = $this->row_count_estimate['is_estimate'] ? '~' : '';
 
 			/* translators: %s: number of items (2x) */
 			$output = '<span class="displaying-num">' . sprintf( _n( '%s item', '%s items', $total_items ), $estimate . number_format_i18n( $total_items ) ) . '</span>';

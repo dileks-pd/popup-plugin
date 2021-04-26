@@ -11,11 +11,13 @@
   $email =  $_REQUEST['email_col'];
 
   if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $sql = "INSERT INTO contacts (name_col, phone_col, email_col) VALUES ('$name', '$phone', '$email')";
-    if(mysqli_query($connection, $sql)) {
-      echo "Success";
-    } else {
-    echo "Error of querie " . $sql . "<br>" . mysqli_error($connection);
+    if(isset($name) && isset($phone) && isset($email)) {
+      $sql = "INSERT INTO contacts (name_col, phone_col, email_col) VALUES ('$name', '$phone', '$email')";
+      if(mysqli_query($connection, $sql)) {
+        echo "Success";
+      } else {
+        echo "Error of querie " . $sql . "<br>" . mysqli_error($connection);
+      }
     }
   }
   mysqli_close($connection);

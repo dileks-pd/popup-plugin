@@ -140,8 +140,11 @@ namespace WPDataAccess\CSV_Files {
 				function wpda_get_tables() {
 					var schema_name = jQuery('#csv_schema_name').val();
 
-					var url = location.pathname + '?action=wpda_get_tables';
-					var data = { wpdaschema_name: schema_name };
+					var url = location.pathname + '?action=wpda_get_tables&hideviews=TRUE';
+					var data = {
+						wpdaschema_name: schema_name,
+						wpda_wpnonce: '<?php echo wp_create_nonce( "wpda-getdata-access" ); ?>'
+					};
 					jQuery.post(
 						url,
 						data,
@@ -165,7 +168,11 @@ namespace WPDataAccess\CSV_Files {
 					var table_name = jQuery('#csv_table_name').val();
 
 					var url = location.pathname + '?action=wpda_get_columns';
-					var data = { wpdaschema_name: schema_name, table_name: table_name };
+					var data = {
+						wpdaschema_name: schema_name,
+						table_name: table_name,
+						wpda_wpnonce: '<?php echo wp_create_nonce( "wpda-getdata-access" ); ?>'
+					};
 					jQuery.post(
 						url,
 						data,

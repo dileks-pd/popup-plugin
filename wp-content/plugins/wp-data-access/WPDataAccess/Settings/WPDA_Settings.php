@@ -269,13 +269,47 @@ namespace WPDataAccess\Settings {
 		 * @see WPDA_Settings::add_content()
 		 */
 		public function show() {
-
+			$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/plugin/';
+			// Add tab specific help url
+			$help_tab = isset( $_REQUEST['tab'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) ) : '';
+			switch ( $help_tab ) {
+				case 'backend':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/back-end/';
+					break;
+				case 'frontend':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/front-end/';
+					break;
+				case 'datatables':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/datatables/';
+					break;
+				case 'datapublisher':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/data-publisher/';
+					break;
+				case 'dataforms':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/data-forms/';
+					break;
+				case 'databackup':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/data-backup/';
+					break;
+				case 'uninstall':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/uninstall/';
+					break;
+				case 'repository':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/manage-repository/';
+					break;
+				case 'roles':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/manage-roles/';
+					break;
+				case 'system':
+					$help_url = 'https://wpdataaccess.com/docs/documentation/plugin-settings/system-info/';
+					break;
+			}
 			?>
 
 			<div class="wrap">
 				<h1>
 					<?php echo __( 'WP Data Access Settings', 'wp-data-access' ); ?>
-					<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/plugin-settings/'; ?>" target="_blank" class="wpda_tooltip" title="Plugin Help - open a new tab or window">
+					<a href="<?php echo $help_url; ?>" target="_blank" class="wpda_tooltip" title="Plugin Help - open a new tab or window">
 					<span class="dashicons dashicons-editor-help"
 						  style="text-decoration:none;vertical-align:top;font-size:30px;">
 						</span></a>
@@ -578,6 +612,11 @@ namespace WPDataAccess\Settings {
 							isset( $_REQUEST['wpdadataforms_page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['wpdadataforms_page'] ) ) : 'off' // input var okay.
 						);
 
+						WPDA::set_option(
+							WPDA::OPTION_PLUGIN_DEBUG,
+							isset( $_REQUEST['debug'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['debug'] ) ) : 'off' // input var okay.
+						);
+
 						if ( isset( $_REQUEST['date_format'] ) ) {
 							WPDA::set_option(
 								WPDA::OPTION_PLUGIN_DATE_FORMAT,
@@ -629,6 +668,8 @@ namespace WPDataAccess\Settings {
 						WPDA::set_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_POST );
 						WPDA::set_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_PAGE );
 
+						WPDA::set_option( WPDA::OPTION_PLUGIN_DEBUG );
+
 						WPDA::set_option( WPDA::OPTION_PLUGIN_DATE_FORMAT );
 						WPDA::set_option( WPDA::OPTION_PLUGIN_DATE_PLACEHOLDER );
 						WPDA::set_option( WPDA::OPTION_PLUGIN_TIME_FORMAT );
@@ -659,6 +700,8 @@ namespace WPDataAccess\Settings {
 			$wpdadiehard_page   = WPDA::get_option( WPDA::OPTION_PLUGIN_WPDADIEHARD_PAGE );
 			$wpdadataforms_post = WPDA::get_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_POST );
 			$wpdadataforms_page = WPDA::get_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_PAGE );
+
+			$debug = WPDA::get_option( WPDA::OPTION_PLUGIN_DEBUG );
 
 			$date_format      = WPDA::get_option( WPDA::OPTION_PLUGIN_DATE_FORMAT );
 			$date_placeholder = WPDA::get_option( WPDA::OPTION_PLUGIN_DATE_PLACEHOLDER );
@@ -1082,6 +1125,17 @@ namespace WPDataAccess\Settings {
 							This settings affects both <strong>Data Forms</strong> shortcodes: <strong>wpdadataprojects</strong> and <strong>wpdadataforms</strong>
 						</td>
 					</tr>
+					<tr>
+						<th><?php echo __( 'Debug mode', 'wp-data-access' ); ?></th>
+						<td>
+							<label>
+								<input
+										type="checkbox"
+										name="debug" <?php echo 'on' === $debug ? 'checked' : ''; ?>
+								><?php echo __( 'Enable debug mode', 'wp-data-access' ); ?>
+							</label>
+						</td>
+					</tr>
 					<?php
 					}
 					?>
@@ -1428,7 +1482,7 @@ namespace WPDataAccess\Settings {
 									if ( is_array( $db_grants ) ) {
 										$db_grants_output = '';
 										foreach ( $db_grants as $db_grant ) {
-											$strpos = strpos( $db_grant[0], 'IDENTIFIED BY PASSWORD ' );
+											$strpos = stripos( $db_grant[0], 'IDENTIFIED BY PASSWORD ' );
 											if ( false !== $strpos ) {
 												$db_grants_output .= substr( $db_grant[0], 0, $strpos ) . 'IDENTIFIED BY PASSWORD \'*****\'<br/>';
 											} else {
@@ -2056,7 +2110,7 @@ namespace WPDataAccess\Settings {
 							<select name="publication_roles[]" multiple size="6">
 								<?php
 								foreach ( $lov_roles as $lov_role ) {
-									if ( false !== strpos( $publication_roles, $lov_role ) ) {
+									if ( false !== stripos( $publication_roles, $lov_role ) ) {
 										$granted = 'selected';
 									} else {
 										$granted = '';
@@ -2130,12 +2184,6 @@ namespace WPDataAccess\Settings {
 				}
 
 				if ( 'save' === $action ) {
-					// Save options.
-					WPDA::set_option(
-						WPDA::OPTION_PLUGIN_WPDADATAFORMS_DEBUG_MODE,
-						isset( $_REQUEST['debug_mode'] ) ? 'on' : 'off'
-					);
-
 					WPDA::set_option(
 						WPDA::OPTION_PLUGIN_WPDADATAFORMS_ALLOW_ANONYMOUS_ACCESS,
 						isset( $_REQUEST['allow_anonymous_access'] ) ? 'on' : 'off'
@@ -2151,7 +2199,6 @@ namespace WPDataAccess\Settings {
 					// Set all publication settings back to default.
 					WPDA::set_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_ALLOW_ANONYMOUS_ACCESS );
 					WPDA::set_option( WPDA::WPDA_DT_UI_THEME_DEFAULT );
-					WPDA::set_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_DEBUG_MODE );
 				}
 
 				$msg = new WPDA_Message_Box(
@@ -2164,7 +2211,6 @@ namespace WPDataAccess\Settings {
 
 			$allow_anonymous_access = WPDA::get_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_ALLOW_ANONYMOUS_ACCESS );
 			$ui_theme_default       = WPDA::get_option( WPDA::WPDA_DT_UI_THEME_DEFAULT );
-			$debug_mode             = WPDA::get_option( WPDA::OPTION_PLUGIN_WPDADATAFORMS_DEBUG_MODE );
 			?>
 			<form id="wpda_settings_forms" method="post"
 				  action="?page=<?php echo esc_attr( $this->page ); ?>&tab=dataforms">
@@ -2188,14 +2234,6 @@ namespace WPDataAccess\Settings {
 								}
 								?>
 							</select>
-						</td>
-					</tr>
-					<tr>
-						<th><?php echo __( 'Debug mode', 'wp-data-access' ); ?></th>
-						<td>
-							<label>
-								<input type="checkbox" name="debug_mode" <?php echo 'on'===$debug_mode ? 'checked' : ''; ?>/>Enabled
-							</label>
 						</td>
 					</tr>
 					<tr>
@@ -3057,12 +3095,20 @@ namespace WPDataAccess\Settings {
 					// Save changes.
 					WPDA::set_option(
 						WPDA::OPTION_MR_KEEP_BACKUP_TABLES,
-						isset( $_REQUEST['keep_backup_tables'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['keep_backup_tables'] ) ) : 'off' // input var okay.
+						isset( $_REQUEST['keep_backup_tables'] ) ?
+							sanitize_text_field( wp_unslash( $_REQUEST['keep_backup_tables'] ) ) :
+							'off' // input var okay.
+					);
+					WPDA::set_option(
+						WPDA::OPTION_MR_BACKUP_TABLES_KEPT,
+						isset( $_REQUEST['backup_tables_kept'] ) ?
+							sanitize_text_field( wp_unslash( $_REQUEST['backup_tables_kept'] ) ) :
+							WPDA::OPTION_MR_BACKUP_TABLES_KEPT_DEFAULT // input var okay.
 					);
 				} elseif ( 'setdefaults' === $action ) {
 					// Set back to default values.
 					WPDA::set_option( WPDA::OPTION_MR_KEEP_BACKUP_TABLES );
-
+					WPDA::set_option( WPDA::OPTION_MR_BACKUP_TABLES_KEPT );
 				}
 
 				$msg = new WPDA_Message_Box(
@@ -3075,6 +3121,7 @@ namespace WPDataAccess\Settings {
 			}
 
 			$keep_backup_tables = WPDA::get_option( WPDA::OPTION_MR_KEEP_BACKUP_TABLES );
+			$backup_tables_kept = WPDA::get_option( WPDA::OPTION_MR_BACKUP_TABLES_KEPT );
 
 			// Check table wp_wpda_menus.
 			$menus_table_name        = WPDA_User_Menus_Model::get_base_table_name();
@@ -3120,18 +3167,6 @@ namespace WPDataAccess\Settings {
 			$found                    = __( 'found', 'wp-data-access' );
 			$not_found                = __( 'not found', 'wp-data-access' );
 			$bck_postfix              = WPDA_Restore_Repository::BACKUP_TABLE_EXTENSION;
-			$repository_backup_tables = [
-				"$menus_table_name{$bck_postfix}",
-				"$design_table_name{$bck_postfix}",
-				"$table_settings_table_name{$bck_postfix}",
-				"$logging_table_name{$bck_postfix}",
-				"$media_table_name{$bck_postfix}",
-				"$data_publication_table_name{$bck_postfix}",
-				"$csv_import_table_name{$bck_postfix}",
-				"$data_projects_project_name{$bck_postfix}",
-				"$data_projects_page_name{$bck_postfix}",
-				"$data_projects_table_name{$bck_postfix}",
-			];
 			$query                    = "select table_name AS table_name from information_schema.tables " .
 				"where table_schema = '{$wpdb->dbname}' " .
 				" and ( table_name like '$menus_table_name{$bck_postfix}%' " .
@@ -3144,7 +3179,7 @@ namespace WPDataAccess\Settings {
 				" or table_name like '$data_projects_project_name{$bck_postfix}%' " .
 				" or table_name like '$data_projects_page_name{$bck_postfix}%' " .
 				" or table_name like '$data_projects_table_name{$bck_postfix}%' )" .
-				"order by create_time desc";
+				"order by 1 desc";
 
 			if ( isset( $_REQUEST['create_backup'] ) && 'true' === $_REQUEST['create_backup'] ) {
 				// Security check
@@ -3164,13 +3199,11 @@ namespace WPDataAccess\Settings {
 
 				if ( isset( $_REQUEST['backup_date'] ) ) {
 					$backup_date = sanitize_text_field( wp_unslash( $_REQUEST['backup_date'] ) ); // input var okay.
+
 					// Remove specific repository backup set
-					foreach ( $repository_backup_tables as $repository_backup_table ) {
-						$drop_table = str_replace( '`', '', "{$repository_backup_table}{$backup_date}" ); // prevent SQL injection
-						$suppress = $wpdb->suppress_errors( true );
-						$wpdb->query( "drop table `$drop_table`" );
-						$wpdb->suppress_errors( $suppress );
-					}
+					$repository = new WPDA_Repository();
+					$repository->remove_backup( $backup_date );
+
 					$msg = new WPDA_Message_Box(
 						[
 							'message_text' => __( 'Repository backup tables dropped', 'wp-data-access' ),
@@ -3394,9 +3427,14 @@ namespace WPDataAccess\Settings {
 						<td>
 							<label>
 								<input type="checkbox" name="keep_backup_tables"
-									   style="margin-right: 0" <?php echo 'on' === $keep_backup_tables ? 'checked' : ''; ?>>
+									   <?php echo 'on' === $keep_backup_tables ? 'checked' : ''; ?>>
 								<strong><?php echo __( 'Keep backup of repository tables', 'wp-data-access' ); ?></strong>
 								<?php echo __( '(creates backup tables on plugin updates)', 'wp-data-access' ); ?>
+							</label>
+							<br/>
+							<label style="display: inline-block; margin-top: 5px">
+								<strong>Max backups saved:</strong>&nbsp;
+								<input type="number" name="backup_tables_kept" value="<?php echo esc_attr( $backup_tables_kept ); ?>" />
 							</label>
 							<br/><br/>
 							<a href="javascript:void(0)"
@@ -4149,11 +4187,6 @@ namespace WPDataAccess\Settings {
 						isset( $_REQUEST['text_wrap'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['text_wrap'] ) ) : 400 // input var okay.
 					);
 
-					WPDA::set_option(
-						WPDA::OPTION_BE_DEBUG,
-						isset( $_REQUEST['debug'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['debug'] ) ) : 'off' // input var okay.
-					);
-
 					if (
 							isset( $_REQUEST['wpda_default_user'] ) &&
 							isset( $_REQUEST['wpda_default_database'] ) &&
@@ -4200,7 +4233,6 @@ namespace WPDataAccess\Settings {
 					WPDA::set_option( WPDA::OPTION_BE_DESIGN_MODE );
 					WPDA::set_option( WPDA::OPTION_BE_TEXT_WRAP_SWITCH );
 					WPDA::set_option( WPDA::OPTION_BE_TEXT_WRAP );
-					WPDA::set_option( WPDA::OPTION_BE_DEBUG );
 					update_option( 'wpda_default_database', [] );
 				} elseif ( 'delete_default_user_database' === $action ) {
 					if ( isset( $_REQUEST['wpda_default_database_delete'] ) ) {
@@ -4269,8 +4301,6 @@ namespace WPDataAccess\Settings {
 
 			$text_wrap_switch = WPDA::get_option( WPDA::OPTION_BE_TEXT_WRAP_SWITCH );
 			$text_wrap        = WPDA::get_option( WPDA::OPTION_BE_TEXT_WRAP );
-
-			$debug = WPDA::get_option( WPDA::OPTION_BE_DEBUG );
 			?>
 			<form id="wpda_settings_backend" method="post"
 				  action="?page=<?php echo esc_attr( $this->page ); ?>&tab=backend">
@@ -4443,11 +4473,33 @@ namespace WPDataAccess\Settings {
 						</td>
 					</tr>
 					<tr>
-						<th><?php echo __( 'Max InnoDB row count', 'wp-data-access' ); ?></th>
+						<th><?php echo __( 'Max row count', 'wp-data-access' ); ?></th>
 						<td>
 							<input
 									type="number" step="1" min="1" max="999999" name="innodb_count" maxlength="3"
 									value="<?php echo esc_attr( $innodb_count ); ?>">
+							<p>
+								<strong>This works for InnoDB tables and views only!</strong>
+							</p>
+							<p>
+								The real row count is shown for other table types.
+							</p>
+							<p>
+								<strong>BEHAVIOUR</strong><br/>
+								IF estimated row count > max row count:<br/>
+								&nbsp;&nbsp;&nbsp;&nbsp;use estimated row count<br/>
+								ELSE<br/>
+								&nbsp;&nbsp;&nbsp;&nbsp;user real row count
+							</p>
+							<p>
+								Showing the estimated row count instead of the real row count <strong>improves performance</strong>
+								for <strong>large tables and views</strong>.
+								An estimated row count is <strong>less accurate</strong> than a real row count.
+							</p>
+							<p>
+								This option can be changed for InnoDB tables and views in the Data Explorer:<br/>
+								WP Data Access > Data Explorer > YOUR TABLE > Manage > Settings > Table Settings > Row count
+							</p>
 						</td>
 					</tr>
 					<tr>
@@ -4550,18 +4602,6 @@ namespace WPDataAccess\Settings {
 									></span>
 								</div>
 							</div>
-						</td>
-					</tr>
-
-					<tr>
-						<th><?php echo __( 'Debug mode', 'wp-data-access' ); ?></th>
-						<td>
-							<label>
-								<input
-										type="checkbox"
-										name="debug" <?php echo 'on' === $debug ? 'checked' : ''; ?>
-								><?php echo __( 'Plugin dashboard debug mode', 'wp-data-access' ); ?>
-							</label>
 						</td>
 					</tr>
 				</table>

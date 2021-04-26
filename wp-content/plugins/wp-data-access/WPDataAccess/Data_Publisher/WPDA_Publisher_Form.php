@@ -69,12 +69,14 @@ namespace WPDataAccess\Data_Publisher {
 
 			$this->check_table_type = false;
 			$this->title            = __( 'Data Publisher', 'wp-data-access' );
-			$args['help_url']       = 'https://wpdataaccess.com/docs/documentation/data-publisher/';
+			$args['help_url']       = 'https://wpdataaccess.com/docs/documentation/data-publisher/data-publisher-getting-started/';
 			if ( wpda_fremius()->is_premium() ) {
 				$this->title = __( 'Premium', 'wp-data-access' ) . ' ' . $this->title;
 			}
 
 			parent::__construct( $schema_name, $table_name, $wpda_list_columns, $args );
+
+			WPDA_Data_Tables::enqueue_styles_and_script();
 		}
 
 		/**
@@ -87,7 +89,7 @@ namespace WPDataAccess\Data_Publisher {
 			$disabled    = 'new' === $this->action ? 'disabled' : '';
 			?>
 			<a href="javascript:void(0)"
-			   onclick="jQuery('#data_publisher_test_container_<?php echo esc_html( $pub_id ); ?>').toggle()"
+			   onclick="test_publication()"
 			   class="button wpda_tooltip <?php echo $disabled; ?>"
 			   title="Test publication"
 			>
@@ -292,7 +294,8 @@ namespace WPDataAccess\Data_Publisher {
 				function update_table_list(table_name = '') {
 					var url = location.pathname + '?action=wpda_get_tables';
 					var data = {
-						wpdaschema_name: jQuery('[name="pub_schema_name"]').val()
+						wpdaschema_name: jQuery('[name="pub_schema_name"]').val(),
+						wpda_wpnonce: '<?php echo wp_create_nonce( "wpda-getdata-access" ); ?>'
 					};
 					jQuery.post(
 						url,
@@ -615,9 +618,30 @@ namespace WPDataAccess\Data_Publisher {
 						}
 					);
 				}
+
+				var publication_loaded = false;
+				function test_publication() {
+					if (!publication_loaded) {
+						jQuery.ajax({
+							type: "POST",
+							url: "<?php echo get_home_url(); ?>/wp-admin/admin-ajax.php?action=wpda_test_publication",
+							data: {
+								wpnonce: "<?php echo esc_attr( wp_create_nonce( "wpda-publication-{$pub_id}" ) ); ?>",
+								pub_id: "<?php echo esc_attr( $pub_id ); ?>"
+							}
+						}).done(
+							function(html) {
+								jQuery("body").append(html);
+								jQuery('#data_publisher_test_container_<?php echo esc_html( $pub_id ); ?>').show();
+								publication_loaded = true;
+							}
+						);
+					} else {
+						jQuery('#data_publisher_test_container_<?php echo esc_html( $pub_id ); ?>').toggle();
+					}
+				}
 			</script>
 			<?php
-			self::show_publication( $pub_id, $table_name );
 		}
 
 		protected function show_shortcode( $pub_id ) {
@@ -679,11 +703,20 @@ namespace WPDataAccess\Data_Publisher {
 			WPDA::shortcode_popup();
 		}
 
-		public static function show_publication( $pub_id, $table_name ) {
+		public static function test_publication() {
+			$pub_id   = isset( $_REQUEST['pub_id'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['pub_id'] ) ) : null;
+			$wp_nonce = isset( $_REQUEST['wpnonce'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['wpnonce'] ) ) : ''; // input var okay.
+
 			$datatables_enabled            = WPDA::get_option( WPDA::OPTION_BE_LOAD_DATATABLES ) === 'on';
 			$datatables_responsive_enabled = WPDA::get_option( WPDA::OPTION_BE_LOAD_DATATABLES_RESPONSE ) === 'on';
 
-			if ( ! $datatables_enabled || ! $datatables_responsive_enabled ) {
+			if ( ! wp_verify_nonce( $wp_nonce, "wpda-publication-{$pub_id}" ) ) {
+				$publication =
+					'<strong>' . __('ERROR: Not authorized', 'wp-data-access' ) . '</strong>';
+			} elseif ( null === $pub_id ) {
+				$publication =
+					'<strong>' . __( 'ERROR: Cannot test publication [wrong arguments]', 'wp-data-access' ) . '</strong>';
+			} elseif ( ! $datatables_enabled || ! $datatables_responsive_enabled ) {
 				$publication =
 					'<strong>' . __( 'ERROR: Cannot test publication', 'wp-data-access' ) . '</strong><br/><br/>' .
 					__( 'SOLUTION: Load jQuery DataTables: WP Data Access > Manage Plugin > Back-End Settings', 'wp-data-access' );
@@ -691,6 +724,8 @@ namespace WPDataAccess\Data_Publisher {
 				$wpda_data_tables = new WPDA_Data_Tables();
 				$publication      = $wpda_data_tables->show( $pub_id, '', '', '', '', '', '', '', '', '' );
 			}
+
+			ob_start();
 			?>
 			<div id="data_publisher_test_container_<?php echo esc_html( $pub_id ); ?>" style="width:95%">
 				<style>
@@ -726,6 +761,9 @@ namespace WPDataAccess\Data_Publisher {
 				jQuery("#data_publisher_test_container_<?php echo esc_html( $pub_id ); ?>").appendTo("#wpbody-content");
 			</script>
 			<?php
+
+			echo ob_get_clean();
+			wp_die();
 		}
 	}
 

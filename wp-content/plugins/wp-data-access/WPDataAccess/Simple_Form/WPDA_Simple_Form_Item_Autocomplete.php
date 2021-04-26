@@ -26,6 +26,8 @@ namespace WPDataAccess\Simple_Form {
 		protected $tableform_settings = null;
 
 		protected function show_item() {
+			$this->set_item_class('wpda_autocomplete_key');
+
 			parent::show_item();
 
 			if ( null === $this->autocomplete_def ) {

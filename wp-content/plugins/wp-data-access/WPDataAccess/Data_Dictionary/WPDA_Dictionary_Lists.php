@@ -63,31 +63,43 @@ namespace WPDataAccess\Data_Dictionary {
 		}
 
 		/**
-		 * List all table in a specific schema
+		 * List all tables in a specific schema
 		 *
 		 * jQuery usage: action=wpda_get_tables
 		 *
 		 * @return array
 		 */
 		public static function get_tables_ajax() {
-			if ( isset( $_REQUEST['wpdaschema_name'] ) ) {
-				$wpdadb = WPDADB::get_db_connection( sanitize_text_field( wp_unslash( $_REQUEST['wpdaschema_name'] ) ) );
-
-				if ( $wpdadb === null ) {
+			if ( isset( $_REQUEST['wpdaschema_name'] ) && isset( $_REQUEST['wpda_wpnonce'] ) ) {
+				$wpnonce = sanitize_text_field( wp_unslash( $_REQUEST['wpda_wpnonce'] ) ); // input var okay.
+				if ( ! wp_verify_nonce( $wpnonce, "wpda-getdata-access" ) ) {
 					echo json_encode( [] );
 				} else {
-					$query = $wpdadb->prepare( "
-					select table_name AS table_name
-					  from information_schema.tables
-					 where table_schema = %s
-					 order by table_name
-					",
-						[
-							$wpdadb->dbname,
-						]
-					);
+					$schema_name = sanitize_text_field( wp_unslash( $_REQUEST['wpdaschema_name'] ) ); // input var okay.
+					$wpdadb      = WPDADB::get_db_connection( $schema_name );
+					$hide_views  = isset( $_REQUEST['hideviews'] ) && 'TRUE' === $_REQUEST['hideviews'];
 
-					echo json_encode( $wpdadb->get_results( $query, 'ARRAY_A' ) ); // WPCS: unprepared SQL OK; db call ok; no-cache ok.
+					if ( $wpdadb === null ) {
+						echo json_encode( [] );
+					} else {
+						$and = '';
+						if ( $hide_views ) {
+							$and = " and table_type != 'VIEW' ";
+						}
+						$query = $wpdadb->prepare( "
+							select table_name AS table_name
+							  from information_schema.tables
+							 where table_schema = %s
+							 $and
+							 order by table_name
+							",
+							[
+								$wpdadb->dbname,
+							]
+						);
+
+						echo json_encode( $wpdadb->get_results( $query, 'ARRAY_A' ) ); // WPCS: unprepared SQL OK; db call ok; no-cache ok.
+					}
 				}
 			} else {
 				echo json_encode( [] );
@@ -104,29 +116,34 @@ namespace WPDataAccess\Data_Dictionary {
 		 *
 		 */
 		public static function get_columns() {
-			if ( isset( $_REQUEST['wpdaschema_name'] ) && isset( $_REQUEST['table_name'] ) ) {
-				$schema_name = isset( $_REQUEST['wpdaschema_name'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['wpdaschema_name'] ) ) : ''; // input var okay.
-				$table_name  = sanitize_text_field( wp_unslash( $_REQUEST['table_name'] ) ); // input var okay.
-
-				$wpdadb      = WPDADB::get_db_connection( $schema_name );
-				if ( $wpdadb === null ) {
+			if ( isset( $_REQUEST['wpdaschema_name'] ) && isset( $_REQUEST['table_name'] ) && isset( $_REQUEST['wpda_wpnonce'] ) ) {
+				$wpnonce = sanitize_text_field( wp_unslash( $_REQUEST['wpda_wpnonce'] ) ); // input var okay.
+				if ( ! wp_verify_nonce( $wpnonce, "wpda-getdata-access" ) ) {
 					echo json_encode( [] );
 				} else {
-					$query = $wpdadb->prepare(
-						'
-				  SELECT column_name AS column_name
-					FROM information_schema.columns 
-				   WHERE table_schema = %s
-					 AND table_name   = %s
-				   ORDER BY ordinal_position
-				',
-						[
-							$wpdadb->dbname,
-							$table_name,
-						]
-					);
+					$schema_name = isset( $_REQUEST['wpdaschema_name'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['wpdaschema_name'] ) ) : ''; // input var okay.
+					$table_name  = sanitize_text_field( wp_unslash( $_REQUEST['table_name'] ) ); // input var okay.
+					$wpdadb      = WPDADB::get_db_connection( $schema_name );
 
-					echo json_encode( $wpdadb->get_results( $query, 'ARRAY_A' ) ); // WPCS: unprepared SQL OK; db call ok; no-cache ok.
+					if ( $wpdadb === null ) {
+						echo json_encode( [] );
+					} else {
+						$query = $wpdadb->prepare(
+							'
+							  SELECT column_name AS column_name
+								FROM information_schema.columns 
+							   WHERE table_schema = %s
+								 AND table_name   = %s
+							   ORDER BY ordinal_position
+							',
+							[
+								$wpdadb->dbname,
+								$table_name,
+							]
+						);
+
+						echo json_encode( $wpdadb->get_results( $query, 'ARRAY_A' ) ); // WPCS: unprepared SQL OK; db call ok; no-cache ok.
+					}
 				}
 			} else {
 				echo json_encode( [] );

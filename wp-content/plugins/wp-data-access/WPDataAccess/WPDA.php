@@ -44,7 +44,7 @@ namespace WPDataAccess {
 		/**
 		 * Option wpda_version and it's default value
 		 */
-		const OPTION_WPDA_VERSION = [ 'wpda_version', '4.2.1' ];
+		const OPTION_WPDA_VERSION = [ 'wpda_version', '4.2.5' ];
 		/**
 		 * Option wpda_setup_error and it's default value
 		 */
@@ -93,7 +93,6 @@ namespace WPDataAccess {
 		const OPTION_PLUGIN_WPDADATAFORMS_POST = [ 'wpda_plugin_wpdadataforms_post', 'on' ];
 		const OPTION_PLUGIN_WPDADATAFORMS_PAGE = [ 'wpda_plugin_wpdadataforms_page', 'on' ];
 		const OPTION_PLUGIN_WPDADATAFORMS_ALLOW_ANONYMOUS_ACCESS = [ 'wpda_plugin_wpdadataforms_allow_anonymous_access', 'off' ];
-		const OPTION_PLUGIN_WPDADATAFORMS_DEBUG_MODE = [ 'wpda_plugin_wpdadataforms_debug_mode', 'off' ];
 		const OPTION_PLUGIN_WPDAREPORT_POST = [ 'wpda_plugin_wpdareport_post', 'on' ];
 		const OPTION_PLUGIN_WPDAREPORT_PAGE = [ 'wpda_plugin_wpdareport_page', 'on' ];
 
@@ -108,6 +107,9 @@ namespace WPDataAccess {
 		const OPTION_PLUGIN_TIME_FORMAT      = [ 'wpda_plugin_time_format', 'H:i' ];
 		const OPTION_PLUGIN_TIME_PLACEHOLDER = [ 'wpda_plugin_time_placeholder', 'hh:mi' ];
 		const OPTION_PLUGIN_SET_FORMAT       = [ 'wpda_plugin_set_format', 'csv' ];
+
+		// Plugin debug mode
+		const OPTION_PLUGIN_DEBUG = [ 'wpda_plugin_debug', 'off' ];
 
 		// Back-end options.
 		/**
@@ -169,11 +171,11 @@ namespace WPDataAccess {
 		/**
 		 * Option wpda_be_confirm_export and it's default value
 		 */
-		const OPTION_BE_CONFIRM_EXPORT = [ 'wpda_be_confirm_export', 'on' ]; // Ask for confirmation before exporting.
+		const OPTION_BE_CONFIRM_EXPORT = [ 'wpda_be_confirm_export', 'off' ]; // Ask for confirmation before exporting.
 		/**
 		 * Option wpda_be_confirm_view and it's default value
 		 */
-		const OPTION_BE_CONFIRM_VIEW = [ 'wpda_be_confirm_view', 'on' ]; // Ask for confirmation before viewing.
+		const OPTION_BE_CONFIRM_VIEW = [ 'wpda_be_confirm_view', 'off' ]; // Ask for confirmation before viewing.
 		/**
 		 * Option wpda_be_pagination and it's default value
 		 */
@@ -198,10 +200,6 @@ namespace WPDataAccess {
 		 * Option wpda_be_text_wrap and it's default value
 		 */
 		const OPTION_BE_TEXT_WRAP = [ 'wpda_be_text_wrap', 400 ];
-		/**
-		 * Option wpda_be_debug and it's default value
-		 */
-		const OPTION_BE_DEBUG = [ 'wpda_be_debug', 'off' ];
 
 		// Front-end options.
 		/**
@@ -230,6 +228,8 @@ namespace WPDataAccess {
 		 * Option wpda_mr_keep_backup_tables and it's default value
 		 */
 		const OPTION_MR_KEEP_BACKUP_TABLES = [ 'wpda_mr_keep_backup_tables', 'on' ];
+		const OPTION_MR_BACKUP_TABLES_KEPT_DEFAULT = '3';
+		const OPTION_MR_BACKUP_TABLES_KEPT = [ 'wpda_mr_backup_tables_kept', self::OPTION_MR_BACKUP_TABLES_KEPT_DEFAULT ];
 
 		// Data Backup options.
 		/**
@@ -621,7 +621,7 @@ namespace WPDataAccess {
 		 */
 		public static function get_type( $arg ) {
 
-			switch ( $arg ) {
+			switch ( trim( str_replace( 'unsigned', '', $arg ) ) ) {
 
 				case 'tinyint':
 				case 'smallint':
@@ -833,7 +833,7 @@ namespace WPDataAccess {
 		 * @return string Where clause between ()
 		 */
 		public static function construct_where_clause( $schema_name, $table_name, $columns, $search ) {
-			$where_search_args = wpda::add_wpda_search_args( $columns );
+			$where_search_args = self::add_wpda_search_args( $columns );
 
 			if ( has_filter('wpda_construct_where_clause') ) {
 				// Use search filter
@@ -868,7 +868,7 @@ namespace WPDataAccess {
 
 			foreach ( $columns as $column ) {
 				if ( 'string' === WPDA::get_type( $column['data_type'] ) ) {
-					$where_columns[] = $wpdb->prepare( "`{$column['column_name']}` like '%s'", '%' . esc_sql( $search ) . '%' ); // WPCS: unprepared SQL OK.
+					$where_columns[] = $wpdb->prepare( "`" . str_replace( '`', '', $column['column_name'] ) . "` like '%s'", '%' . esc_sql( $search ) . '%' ); // WPCS: unprepared SQL OK.
 				}
 			}
 
@@ -889,7 +889,7 @@ namespace WPDataAccess {
 			if ( is_array( $columns ) ) {
 				global $wpdb;
 				foreach ( $columns as $column ) {
-					$column_name = $column['column_name'];
+					$column_name = str_replace( '`', '', $column['column_name'] );
 					if ( isset( $_REQUEST["wpda_search_column_{$column_name}"] ) ) {
 						if ( is_array( $_REQUEST["wpda_search_column_{$column_name}"] ) ) {
 							// Handle multiple values for same column with OR
@@ -1056,20 +1056,25 @@ namespace WPDataAccess {
 		 * @return int row count estimate or -1 if no estimate available
 		 */
 		public static function get_row_count_estimate( $schema_name, $table_name, $wpda_table_settings ) {
+			$row_count     = null;
+			$is_estimate   = null;
+			$do_real_count = null;
+
 			global $wpdb;
 
 			$wpdadb     = WPDADB::get_db_connection( $schema_name );
 			$table_info = $wpdadb->get_results(
 				$wpdadb->prepare(
 					"
-								select engine as engine,
-								       table_rows as table_rows
-								 from `information_schema`.`tables`
-								where `table_schema` = %s
-								  and `table_name` = %s
-							",
+						select engine as engine,
+							   table_rows as table_rows,
+							   table_type as table_type
+						 from  information_schema.tables
+						where  table_schema = %s
+						  and  table_name = %s
+					",
 					[
-						'' === $schema_name ? $wpdb->dbname : $schema_name,
+						$wpdadb->dbname,
 						$table_name
 					]
 				),
@@ -1077,31 +1082,57 @@ namespace WPDataAccess {
 			);
 
 			if ( 1 === sizeof( $table_info ) ) {
-				if ( 'InnoDB' !== $table_info[0]['engine'] ) {
-					return $table_info[0]['table_rows'];
-				} else {
-					if (
-						isset( $wpda_table_settings->table_settings->row_count_estimate ) &&
-						$wpda_table_settings->table_settings->row_count_estimate !== null
-					) {
-						if ( $wpda_table_settings->table_settings->row_count_estimate ) {
-							return $table_info[0]['table_rows'];
-						} else {
-							return -1;
-						}
-					} else {
-						$innodb_count = WPDA::get_option( WPDA::OPTION_BE_INNODB_COUNT );
+				$row_count  = $table_info[0]['table_rows'];
 
-						if ( $table_info[0]['table_rows'] > $innodb_count ) {
-							return $table_info[0]['table_rows'];
+				if ( isset( $wpda_table_settings->table_settings->row_count_estimate ) ) {
+					$system_row_count_estimate = $wpda_table_settings->table_settings->row_count_estimate;
+				} else {
+					$system_row_count_estimate = null;
+				}
+
+				if (
+					'innodb' === strtolower( $table_info[0]['engine'] ) ||
+					stripos( strtolower( $table_info[0]['table_type'] ), 'view' ) !== false
+				) {
+					// Handle InnoDB tables, views and system views
+					$view_explain = $wpdadb->get_results(
+						'explain select count(*) from `' . str_replace( '`', '', $table_name ) . '`',
+						'ARRAY_A'
+					);
+
+					if ( isset( $view_explain[0]['rows'] ) ) {
+						$row_count = $view_explain[0]['rows'];
+					} elseif ( isset( $view_explain[0]['ROWS'] ) ) {
+						$row_count = $view_explain[0]['ROWS'];
+					}
+
+					if ( true === $system_row_count_estimate ) {
+						$is_estimate   = true;
+						$do_real_count = false;
+					} elseif ( false === $system_row_count_estimate ) {
+						$is_estimate   = false;
+						$do_real_count = true;
+					} else {
+						if ( intval( $row_count ) > intval( WPDA::get_option( WPDA::OPTION_BE_INNODB_COUNT ) ) ) {
+							$is_estimate   = true;
+							$do_real_count = false;
 						} else {
-							return -1;
+							$is_estimate   = false;
+							$do_real_count = true;
 						}
 					}
+				} else {
+					// Handle other table types (MyISAM and NDB)
+					$is_estimate   = false;
+					$do_real_count = false;
 				}
-			} else {
-				return -1; // This should not happen (just to be sure)
 			}
+
+			return [
+				'row_count'     => $row_count,
+				'is_estimate'   => $is_estimate,
+				'do_real_count' => $do_real_count
+			];
 		}
 
 	}

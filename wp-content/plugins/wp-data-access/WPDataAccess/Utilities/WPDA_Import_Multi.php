@@ -351,7 +351,7 @@ namespace WPDataAccess\Utilities {
 								<legend>
 								<span>
 									<strong><?php echo $this->info_title; ?></strong>
-									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/exports-and-imports/" target="_blank" class="wpda_tooltip" title="Plugin Help - open a new tab or window">
+									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/actions/#export" target="_blank" class="wpda_tooltip" title="Plugin Help - open a new tab or window">
 										<span class="dashicons dashicons-editor-help "style="text-decoration:none;vertical-align:middle;font-size:18px;">
 									</span></a>
 								</span>

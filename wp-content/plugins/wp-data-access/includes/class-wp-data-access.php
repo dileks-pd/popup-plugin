@@ -190,6 +190,7 @@ class WP_Data_Access
             10,
             1
         );
+        $this->loader->add_action( 'wp_ajax_wpda_test_publication', \WPDataAccess\Data_Publisher\WPDA_Publisher_Form::class, 'test_publication' );
     }
     
     public function add_id_to_script( $tag, $handle, $src )

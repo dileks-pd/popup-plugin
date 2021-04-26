@@ -71,7 +71,7 @@ namespace WPDataProjects\Project {
 		 * @param string $add_param
 		 */
 		public function show( $allow_save = true, $add_param = '' ) {
-			if ( 'on' === WPDA::get_option( WPDA::OPTION_BE_DEBUG ) && isset( $_REQUEST['project_id'] ) ) {
+			if ( 'on' === WPDA::get_option( WPDA::OPTION_PLUGIN_DEBUG ) && isset( $_REQUEST['project_id'] ) ) {
 				$project_id = sanitize_text_field( wp_unslash( $_REQUEST['project_id'] ) ); // input var okay.
 				global $wpdb;
 				$project_page_table_name = $wpdb->prefix . 'wpda_project_page';

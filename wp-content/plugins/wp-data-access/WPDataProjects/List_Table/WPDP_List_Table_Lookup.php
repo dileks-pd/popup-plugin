@@ -192,11 +192,11 @@ namespace WPDataProjects\List_Table {
 
 			// Value is taken from database query. No need to prepare.
 			if ( '' === $target_schema_name ) {
-				$lookup_sql_table_name = "`$target_table_name`";
+				$lookup_sql_table_name = "`" . str_replace( '`', '', $target_table_name ) . "`";
 			} else {
-				$lookup_sql_table_name = "`{$wpdadb->dbname}`.`$target_table_name`";
+				$lookup_sql_table_name = "`{$wpdadb->dbname}`.`" . str_replace( '`', '', $target_table_name ) . "`";
 			}
-			$sql = "select `$source_column_name` from $lookup_sql_table_name where `$target_column_name` = ";
+			$sql = "select `" . str_replace( '`', '', $source_column_name ) . "` from $lookup_sql_table_name where `" . str_replace( '`', '', $target_column_name ) . "` = ";
 			if ( 'number' === WPDA::get_type( $data_type ) ) {
 				$sql = $wpdadb->prepare( $sql . "%d $and", [ $value ] );
 			} else {
@@ -238,8 +238,8 @@ namespace WPDataProjects\List_Table {
 										) &&
 									    $column_options_relationship->source_column_name[0] === $column_option->column_name
 									) {
-										$target_table_name  = $column_options_relationship->target_table_name;
-										$target_column_name = $column_options_relationship->target_column_name[0];
+										$target_table_name  = str_replace( '`', '', $column_options_relationship->target_table_name );
+										$target_column_name = str_replace( '`', '', $column_options_relationship->target_column_name[0] );
 
 										$relationship_table         = WPDP_List_Columns_Cache::get_list_columns( $wpdb->dbname, $target_table_name, 'listtable', $this->setname );
 										$relationship_table_columns = $relationship_table->get_table_columns();

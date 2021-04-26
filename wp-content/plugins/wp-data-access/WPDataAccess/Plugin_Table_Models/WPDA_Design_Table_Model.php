@@ -473,7 +473,7 @@ namespace WPDataAccess\Plugin_Table_Models {
 			if ( 1 !== $wpdb->num_rows ) {
 				return false;
 			} else {
-				if ( strpos( $result[0]['table_type'], 'VIEW' ) === false ) {
+				if ( stripos( $result[0]['table_type'], 'view' ) === false ) {
 					return 'TABLE';
 				} else {
 					return 'VIEW';

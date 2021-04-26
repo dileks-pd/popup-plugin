@@ -729,7 +729,10 @@ namespace WPDataProjects\Project {
 
 				function wpdp_get_tables(schema_name, index, target_id, selected_value, target_column_name = false, source_column_name= false) {
 					var url = location.pathname + '?action=wpda_get_tables';
-					var data = { wpdaschema_name: schema_name };
+					var data = {
+						wpdaschema_name: schema_name,
+						wpda_wpnonce: '<?php echo wp_create_nonce( "wpda-getdata-access" ); ?>'
+					};
 					jQuery.post(
 						url,
 						data,
@@ -765,7 +768,11 @@ namespace WPDataProjects\Project {
 						schema_name = '<?php echo $this->wpda_schema_name; ?>';
 					}
 					var url = location.pathname + '?action=wpda_get_columns';
-					var data = { wpdaschema_name: schema_name, table_name: table_name };
+					var data = {
+						wpdaschema_name: schema_name,
+						table_name: table_name,
+						wpda_wpnonce: '<?php echo wp_create_nonce( "wpda-getdata-access" ); ?>'
+					};
 					jQuery.post(
 						url,
 						data,

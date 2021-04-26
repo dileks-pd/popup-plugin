@@ -376,7 +376,7 @@ namespace WPDataAccess\Data_Dictionary {
 				sprintf(
 					"SHOW INDEX FROM `%s`.`%s` WHERE non_unique = 0",
 					$this->wpdadb->dbname,
-					$this->table_name
+					str_replace( '`', '', $this->table_name )
 				);
 			$result = $this->wpdadb->get_results( $query, 'ARRAY_A' );
 			$this->wpdadb->suppress_errors( $suppress );

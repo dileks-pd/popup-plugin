@@ -379,7 +379,7 @@ class WP_Data_Access_Public
         $default_where = '';
         
         if ( isset( $atts['filter_field_name'] ) && isset( $atts['filter_field_value'] ) ) {
-            $filter_field_name = sanitize_text_field( wp_unslash( $atts['filter_field_name'] ) );
+            $filter_field_name = str_replace( '`', '', sanitize_text_field( wp_unslash( $atts['filter_field_name'] ) ) );
             // input var okay.
             $filter_field_value = sanitize_text_field( wp_unslash( $atts['filter_field_value'] ) );
             // input var okay.

@@ -132,7 +132,7 @@ namespace WPDataAccess\Utilities {
 				wp_die( __( 'ERROR: Wrong arguments', 'wp-data-access' ) );
 			} else {
 				$this->schema_name = sanitize_text_field( wp_unslash( $_REQUEST['wpdaschema_name'] ) ); // input var okay.
-				$this->table_name  = sanitize_text_field( wp_unslash( $_REQUEST['table_name'] ) ); // input var okay.
+				$this->table_name  = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['table_name'] ) ) ); // input var okay.
 				$this->rownum      = sanitize_text_field( wp_unslash( $_REQUEST['rownum'] ) ); // input var okay.
 
 				$wpda_data_dictionary = new WPDA_Dictionary_Exist( $this->schema_name, $this->table_name );
@@ -160,7 +160,7 @@ namespace WPDataAccess\Utilities {
 				$query                 = "show full columns from `{$wpdadb->dbname}`.`{$this->table_name}`";
 				$this->table_structure = $wpdadb->get_results( $query, 'ARRAY_A' );
 
-				if ( strpos( strtoupper( $this->dbo_type ), 'TABLE' ) !== false ) {
+				if ( stripos( $this->dbo_type, 'table' ) !== false ) {
 					$this->dbo_type = 'Table';
 					$query          = "show create table `{$wpdadb->dbname}`.`{$this->table_name}`";
 					$create_table   = $wpdadb->get_results( $query, 'ARRAY_A' );
@@ -407,7 +407,8 @@ namespace WPDataAccess\Utilities {
 				$column_settings_add_column = [];
 			}
 
-			$engine = WPDA_Dictionary_Lists::get_engine( $this->schema_name, $this->table_name );
+			$engine                    = WPDA_Dictionary_Lists::get_engine( $this->schema_name, $this->table_name );
+			$row_count_is_configurable = $engine === 'InnoDB' || $engine === null;
 			?>
 			<style>
 				.wpda_table_settings_caret {
@@ -498,7 +499,7 @@ namespace WPDataAccess\Utilities {
 									</a>
 									<ul class="wpda_table_settings_nested">
 										<div style="font-size:90%;font-weight:bold;">
-											<?php echo __( 'Row count (InnoDB only)', 'wp-data-access' ); ?>
+											<?php echo __( 'Row count (configurable for InnoDB tables and views only)', 'wp-data-access' ); ?>
 										</div>
 										<div style="font-size:90%;">
 											<label class="wpda_action_font">
@@ -506,7 +507,7 @@ namespace WPDataAccess\Utilities {
 													   name="<?php echo esc_attr( $this->table_name ); ?>_row_count_estimate"
 													   value="true"
 													   <?php
-													   echo $engine !== 'InnoDB' ? ' disabled ' : '';
+													   echo ! $row_count_is_configurable ? ' disabled ' : '';
 													   if (
 													   		isset( $settings_db_custom->table_settings->row_count_estimate ) &&
 															$settings_db_custom->table_settings->row_count_estimate
@@ -515,7 +516,7 @@ namespace WPDataAccess\Utilities {
 													   }
 													   ?>
 												>
-												Show estimate row count (faster but less accurate)
+												Show estimated row count (faster but less accurate)
 											</label>
 											<br/>
 											<label class="wpda_action_font">
@@ -523,12 +524,16 @@ namespace WPDataAccess\Utilities {
 													   name="<?php echo esc_attr( $this->table_name ); ?>_row_count_estimate"
 													   value="false"
 													   <?php
-													   echo $engine !== 'InnoDB' ? ' disabled ' : '';
+													   echo ! $row_count_is_configurable ? ' disabled ' : '';
 													   if (
 														   isset( $settings_db_custom->table_settings->row_count_estimate ) &&
 														   ! $settings_db_custom->table_settings->row_count_estimate
 													   ) {
 														   echo ' checked ';
+													   } else {
+														   	if ( ! $row_count_is_configurable ) {
+														   		echo ' checked ';
+														   	}
 													   }
 													   ?>
 												>
@@ -540,13 +545,15 @@ namespace WPDataAccess\Utilities {
 													   name="<?php echo esc_attr( $this->table_name ); ?>_row_count_estimate"
 													   value=""
 													   <?php
-													   echo $engine !== 'InnoDB' ? ' disabled ' : '';
+													   echo ! $row_count_is_configurable ? ' disabled ' : '';
 													   if ( isset( $settings_db_custom->table_settings->row_count_estimate ) ) {
 													   		if ( null === $settings_db_custom->table_settings->row_count_estimate ) {
 																echo ' checked ';
 															}
 													   } else {
-													   		echo ' checked ';
+													   		if ( $row_count_is_configurable ) {
+																echo ' checked ';
+															}
 													   }
 													   ?>
 												>
@@ -629,7 +636,7 @@ namespace WPDataAccess\Utilities {
 								</li>
 								<li>
 									<span class="wpda_table_settings_caret"><?php echo __( 'Column Settings', 'wp-data-access' ); ?></span>
-									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/table-settings/" target="_blank">
+									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/column-settings/" target="_blank">
 										<span class="dashicons dashicons-editor-help wpda_tooltip"
 											  title="<?php echo __( 'Define column labels and (media) types [help opens in a new tab or window]', 'wp-data-access' ); ?>"
 											  style="cursor:pointer"></span>
@@ -787,7 +794,7 @@ namespace WPDataAccess\Utilities {
 								</li>
 								<li>
 									<span class="wpda_table_settings_caret"><?php echo __( 'Dynamic Hyperlinks', 'wp-data-access' ); ?></span>
-									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/table-settings/" target="_blank">
+									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/dynamic-hyperlinks/" target="_blank">
 										<span class="dashicons dashicons-editor-help wpda_tooltip"
 											  title="<?php echo sprintf( __( 'Add dynamic hyperlinks to table `%s` [help opens in a new tab or window]', 'wp-data-access' ), esc_attr( $this->table_name ) ); ?>"
 											  style="cursor:pointer"></span>
@@ -985,7 +992,7 @@ Variable $$column_name$$ will be replaced with the value of column $$column_name
 								</li>
 								<li>
 									<span class="wpda_table_settings_caret"><?php echo __( 'Dashboard Menus', 'wp-data-access' ); ?></span>
-									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/add-table-to-dashboard-menu/" target="_blank">
+									<a href="https://wpdataaccess.com/docs/documentation/data-explorer/dashboard-menus/" target="_blank">
 										<span class="dashicons dashicons-editor-help wpda_tooltip"
 											  title="<?php echo sprintf( __( 'Add table `%s` to a WordPress dashboard menu [help opens in a new tab or window]', 'wp-data-access' ), esc_attr( $this->table_name ) ); ?>"
 											  style="cursor:pointer;vertical-align:text-bottom;"></span>
@@ -1044,7 +1051,7 @@ Variable $$column_name$$ will be replaced with the value of column $$column_name
 															<?php
 															global $wp_roles;
 															foreach ( $wp_roles->roles as $role => $val ) {
-																$selected = false !== strpos( $table_menu['menu_role'], $role ) ? 'selected' : '';
+																$selected = false !== stripos( $table_menu['menu_role'], $role ) ? 'selected' : '';
 																$role_label = isset( $val['name'] ) ? $val['name'] : $role;
 																echo "<option value='$role' $selected>$role_label</option>";
 															}
@@ -1266,7 +1273,7 @@ Variable $$column_name$$ will be replaced with the value of column $$column_name
 		}
 
 		protected function tab_foreign_keys() {
-			if ( false !== strpos( $this->create_table_stmt_orig, 'ENGINE=InnoDB' ) ) {
+			if ( false !== stripos( $this->create_table_stmt_orig, 'ENGINE=InnoDB' ) ) {
 				?>
 				<table class="widefat striped rows wpda-structure-table">
 					<tr>
@@ -1454,7 +1461,7 @@ Variable $$column_name$$ will be replaced with the value of column $$column_name
 
 			global $wpdb;
 			$export_variable_prefix = false;
-			if ( strpos( $this->table_name, $wpdb->prefix ) === 0 ) {
+			if ( stripos( $this->table_name, $wpdb->prefix ) === 0 ) {
 				// Offer an extra SQL option: SQL (add WP prefix)
 				$export_variable_prefix = true;
 			}

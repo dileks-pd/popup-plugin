@@ -201,14 +201,22 @@ namespace WPDataProjects {
 		 * Implementation of the Data Projects page
 		 */
 		public function data_projects_page() {
+			$demo_url = 'https://wpdataaccess.com/docs/documentation/data-projects/demos/';
+			$tuts_url = 'https://wpdataaccess.com/docs/documentation/data-projects/tutorials/';
 			?>
 			<div class="wrap">
 				<h1 class="wp-heading-inline">
 					<span><?php echo $this->projects_page_title; ?></span>
 					<span style="padding-left:10px">
-						<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/data-projects/'; ?>" target="_blank"
+						<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/data-projects/data-projects-getting-started/'; ?>" target="_blank"
 						   title="Plugin Help - opens in a new tab or window" class="wpda_tooltip">
 							<span class="material-icons" style="font-size: 26px; vertical-align: sub;">help</span></a>
+						<a href="<?php echo $demo_url; ?>" target="_blank"
+						   class="wpda_tooltip" title="Demos - opens in a new tab or window">
+							<span class="material-icons" style="font-size: 26px; vertical-align: sub;">desktop_mac</span></a>
+						<a href="<?php echo $tuts_url; ?>" target="_blank"
+						   class="wpda_tooltip" title="Tutorials - opens in a new tab or window">
+							<span class="material-icons" style="font-size: 26px; vertical-align: sub;">video_library</span></a>
 					</span>
 				</h1>
 				<?php
@@ -222,14 +230,53 @@ namespace WPDataProjects {
 		 * Implementation of the Project Templates page
 		 */
 		public function project_templates_page() {
+			$help_url = 'https://wpdataaccess.com/docs/documentation/project-templates/creating-templates/';
+			$demo_url = '';
+			$tuts_url = '';
+			if ( isset( $_REQUEST['action'] ) && ( 'view' === $_REQUEST['action'] || 'edit' === $_REQUEST['action'] ) ) {
+				// Add tab specific help url
+				$help_tab = isset( $_REQUEST['tab'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) ) : '';
+				switch ( $help_tab ) {
+					case 'relation':
+						$help_url = 'https://wpdataaccess.com/docs/documentation/project-templates/relationships/';
+						break;
+					case 'listtable':
+						$help_url = 'https://wpdataaccess.com/docs/documentation/project-templates/list-table/';
+						break;
+					case 'tableform':
+						$help_url = 'https://wpdataaccess.com/docs/documentation/project-templates/data-entry/';
+						break;
+					case 'reconcile':
+						$help_url = 'https://wpdataaccess.com/docs/documentation/project-templates/reconcile/';
+						break;
+					default:
+						$help_url = 'https://wpdataaccess.com/docs/documentation/project-templates/table-settings/';
+				}
+			}
 			?>
 			<div class="wrap">
 				<h1 class="wp-heading-inline">
 					<span><?php echo $this->template_page_title; ?></span>
 					<span style="padding-left:10px">
-						<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/project-templates/'; ?>" target="_blank"
+						<a href="<?php echo $help_url; ?>" target="_blank"
 						   title="Plugin Help - opens in a new tab or window" class="wpda_tooltip">
 							<span class="material-icons" style="font-size: 26px; vertical-align: sub;">help</span></a>
+						<?php
+						if ( '' !== $demo_url ) {
+							?>
+							<a href="<?php echo $demo_url; ?>" target="_blank"
+							   class="wpda_tooltip" title="Demos - opens in a new tab or window">
+								<span class="material-icons" style="font-size: 26px; vertical-align: sub;">desktop_mac</span></a>
+							<?php
+						}
+						if ( '' !== $tuts_url ) {
+							?>
+							<a href="<?php echo $tuts_url; ?>" target="_blank"
+							   class="wpda_tooltip" title="Tutorials - opens in a new tab or window">
+								<span class="material-icons" style="font-size: 26px; vertical-align: sub;">video_library</span></a>
+							<?php
+						}
+						?>
 					</span>
 				</h1>
 				<?php
@@ -249,7 +296,7 @@ namespace WPDataProjects {
 			<div class="wrap">
 				<h1 class="wp-heading-inline">
 					<span><?php echo $this->projects_page_title; ?></span>
-					<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/data-projects/'; ?>" target="_blank">
+					<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/data-projects/data-projects-getting-started/'; ?>" target="_blank">
 						<span class="dashicons dashicons-editor-help"
 							  style="text-decoration:none;vertical-align:top;font-size:30px;">
 						</span></a>
@@ -268,7 +315,7 @@ namespace WPDataProjects {
 			<div class="wrap">
 				<h1 class="wp-heading-inline">
 					<span><?php echo $this->projects_page_title; ?></span>
-					<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/project-templates/'; ?>" target="_blank">
+					<a href="<?php echo 'https://wpdataaccess.com/docs/documentation/project-templates/gettings-started/'; ?>" target="_blank">
 						<span class="dashicons dashicons-editor-help"
 							  style="text-decoration:none;vertical-align:top;font-size:30px;">
 						</span></a>

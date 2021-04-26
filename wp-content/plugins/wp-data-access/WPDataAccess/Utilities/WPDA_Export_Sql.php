@@ -332,7 +332,7 @@ namespace WPDataAccess\Utilities {
 			$wpdadb->suppress_errors = true;
 
 			if ( 'off' !== $this->show_create ) {
-				$query = "show create table {$this->schema_name_prefix}`$table_name`";
+				$query = "show create table {$this->schema_name_prefix}`" . str_replace( '`', '', $table_name ) . "`";
 				$ctcmd = $wpdadb->get_results( $query, 'ARRAY_A' ); // WPCS: unprepared SQL OK; db call ok; no-cache ok.
 			}
 
@@ -359,7 +359,7 @@ namespace WPDataAccess\Utilities {
 						$wpdb->dbname === $this->schema_name &&
 						( WPDA::is_wp_table( $table_name ) || WPDA::is_wpda_table( $table_name ) )
 					) {
-						$table_name_position = strpos( $create_table_statement, $table_name );
+						$table_name_position = stripos( $create_table_statement, $table_name );
 						if ( $table_name_position > 0 ) {
 							$create_table_statement_saved = $create_table_statement;
 							$create_table_statement       = substr( $create_table_statement, 0, $table_name_position );
@@ -408,7 +408,7 @@ namespace WPDataAccess\Utilities {
 			$save_suppress_errors  = $wpdadb->suppress_errors;
 			$wpdadb->suppress_errors = true;
 
-			$query = "select * from {$this->schema_name_prefix}`$table_name` $where";
+			$query = "select * from {$this->schema_name_prefix}`" . str_replace( '`', '', $table_name ) . "` $where";
 			$rows  = $wpdadb->get_results( $query, 'ARRAY_A' ); // WPCS: unprepared SQL OK; db call ok; no-cache ok.
 
 			$this->output_string = '';
@@ -447,9 +447,9 @@ namespace WPDataAccess\Utilities {
 					( $wpdb->dbname === $this->schema_name || '' === $this->schema_name ) &&
 					( WPDA::is_wp_table( $table_name ) || WPDA::is_wpda_table( $table_name ) )
 				) {
-					$insert_statement = 'INSERT INTO `{wp_prefix}' . esc_attr( substr( $table_name, strlen( $wpdb->prefix ) ) ) . "` ";
+					$insert_statement = 'INSERT INTO `{wp_prefix}' . esc_attr( substr( str_replace( '`', '', $table_name ), strlen( $wpdb->prefix ) ) ) . "` ";
 				} else {
-					$insert_statement = 'INSERT INTO `' . esc_attr( $table_name ) . "` ";
+					$insert_statement = 'INSERT INTO `' . esc_attr( str_replace( '`', '', $table_name ) ) . "` ";
 				}
 
 				$process_first_row = true;
@@ -466,7 +466,7 @@ namespace WPDataAccess\Utilities {
 						)
 					) {
 						$insert_statement .= $process_first_row ? '(' : ', ';
-						$insert_statement .= '`' . esc_attr( $column_name ) . '`';
+						$insert_statement .= '`' . esc_attr( str_replace( '`', '', $column_name ) ) . '`';
 
 						$process_first_row = false;
 					}

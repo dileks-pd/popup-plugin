@@ -112,6 +112,7 @@ namespace WPDataAccess\Utilities {
 			foreach ( $rows as $row ) {
 				$obj              = (object) null;
 				$obj->column_name = $row['column_name'];
+
 				$obj->data_type   = $row['data_type'];
 				if ( stripos( $row['column_type'], 'unsigned' ) !== false ) {
 					$obj->type_attribute = 'unsigned';
@@ -120,14 +121,31 @@ namespace WPDataAccess\Utilities {
 				} else {
 					$obj->type_attribute = '';
 				}
+
 				$obj->key        = 'PRI' === $row['column_key'] ? 'Yes' : 'No';
 				$obj->mandatory  = 'YES' === $row['is_nullable'] ? 'No' : 'Yes';
-				$obj->max_length = '';
-				if ( 'varchar' === $row['data_type'] || 'char' === $row['data_type'] ||
-				     'varbinary' === $row['data_type'] || 'binary' === $row['data_type'] ||
-				     'tinytext' === $row['data_type'] || 'tinyblob' === $row['data_type'] ) {
-					$obj->max_length = $row['character_maximum_length'];
+
+				$obj->max_length  = '';
+				$max_length_start = strpos( $row['column_type'], '(' );
+				if (
+					false !== $max_length_start &&
+					'enum' !== $row['data_type'] &&
+					'set' !== $row['data_type']
+				) {
+					// Get max length from column_type
+					$max_length_end = strpos( $row['column_type'], ')' );
+					if ( false != $max_length_end ) {
+						$obj->max_length = substr( $row['column_type'], $max_length_start + 1, $max_length_end - $max_length_start - 1 );
+					} elseif ( null !== $row['character_maximum_length'] ) {
+						$obj->max_length = $row['character_maximum_length'];
+					} elseif ( null !== $row['numeric_precision'] ) {
+						$obj->max_length = $row['numeric_precision'];
+						if ( null !== $row['numeric_scale'] ) {
+							$obj->max_length .= ",{$row['numeric_scale']}";
+						}
+					}
 				}
+
 				$obj->extra = $row['extra'];
 				if ( '' !== $row['column_default'] && null !== $row['column_default'] ) {
 					$simple_data_type = WPDA::get_type( $obj->data_type );
@@ -139,13 +157,12 @@ namespace WPDataAccess\Utilities {
 				} else {
 					$obj->default = '';
 				}
+
 				$obj->list = '';
 				if ( 'enum' === $row['data_type'] ) {
 					$obj->list = substr( substr( $row['column_type'], 5 ), 0, - 1 );
 				} elseif ( 'set' === $row['data_type'] ) {
 					$obj->list = substr( substr( $row['column_type'], 4 ), 0, - 1 );
-				} elseif ( null !== $row['numeric_precision'] ) {
-					$obj->max_length = $row['numeric_precision'];
 				}
 
 				$table_structure[] = $obj;
@@ -203,7 +220,8 @@ namespace WPDataAccess\Utilities {
 						   column_key AS column_key,
 						   extra AS extra,
 						   character_maximum_length AS character_maximum_length,
-						   numeric_precision AS numeric_precision
+						   numeric_precision AS numeric_precision,
+					       numeric_scale AS numeric_scale
 					FROM   information_schema.columns
 					WHERE  table_schema = %s
 					  AND  table_name   = %s

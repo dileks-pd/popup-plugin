@@ -16,6 +16,7 @@ use  WPDataAccess\Plugin_Table_Models\WPDA_Publisher_Model ;
 use  WPDataAccess\Plugin_Table_Models\WPDA_Media_Model ;
 use  WPDataAccess\Plugin_Table_Models\WPDA_Table_Settings_Model ;
 use  WPDataAccess\List_Table\WPDA_List_Table ;
+use  WPDataAccess\Premium\WPDAPRO_Geo_Location\WPDAPRO_Geo_Location_WS ;
 use  WPDataAccess\WPDA ;
 use function  GuzzleHttp\json_encode ;
 /**
@@ -27,6 +28,20 @@ use function  GuzzleHttp\json_encode ;
 class WPDA_Data_Tables
 {
     protected  $wpda_list_columns ;
+    public static function enqueue_styles_and_script()
+    {
+        // Activate scripts and styles
+        wp_enqueue_style( 'jquery_datatables' );
+        wp_enqueue_style( 'jquery_datatables_responsive' );
+        wp_enqueue_style( 'wpda_datatables_default' );
+        wp_enqueue_style( 'dashicons' );
+        // Needed to display icons for media attachments
+        wp_enqueue_script( 'jquery_datatables' );
+        wp_enqueue_script( 'jquery_datatables_responsive' );
+        wp_enqueue_script( 'purl' );
+        wp_enqueue_script( 'wpda_datatables' );
+    }
+    
     /**
      * Generate jQuery DataTable code
      *
@@ -69,15 +84,7 @@ class WPDA_Data_Tables
     )
     {
         // Activate scripts and styles
-        wp_enqueue_style( 'jquery_datatables' );
-        wp_enqueue_style( 'jquery_datatables_responsive' );
-        wp_enqueue_style( 'wpda_datatables_default' );
-        wp_enqueue_style( 'dashicons' );
-        // Needed to display icons for media attachments
-        wp_enqueue_script( 'jquery_datatables' );
-        wp_enqueue_script( 'jquery_datatables_responsive' );
-        wp_enqueue_script( 'purl' );
-        wp_enqueue_script( 'wpda_datatables' );
+        self::enqueue_styles_and_script();
         if ( '' === $pub_id && '' === $pub_name && '' === $table_name ) {
             return '<p>' . __( 'ERROR: Missing argument [need at least pub_id, pub_name or table argument]', 'wp-data-access' ) . '</p>';
         }
@@ -208,13 +215,9 @@ class WPDA_Data_Tables
             }
         }
         
-        $calc_estimate = false;
-        $innodb_count = WPDA::get_option( WPDA::OPTION_BE_INNODB_COUNT );
-        if ( 'InnoDB' === WPDA_Dictionary_Lists::get_engine( $database, $table_name ) ) {
-            if ( WPDA::get_row_count_estimate( $database, $table_name, $table_settings ) > $innodb_count ) {
-                $calc_estimate = true;
-            }
-        }
+        $geolocation = null;
+        $row_count_estimate = WPDA::get_row_count_estimate( $database, $table_name, $table_settings );
+        $calc_estimate = $row_count_estimate['is_estimate'];
         $hyperlink_positions = [];
         // Set columns to be queried.
         $this->wpda_list_columns = WPDA_List_Columns_Cache::get_list_columns( $database, $table_name );
@@ -267,9 +270,12 @@ class WPDA_Data_Tables
                 $column_label = $hyperlinks[substr( $columns[$i], strrpos( $columns[$i], '_' ) + 1 )];
             }
             
-            $wpda_database_columns .= '{ "className": "' . $columns[$i] . '", 
-					"targets": [' . $i . '], 
-					"label": "' . $column_label . '" }';
+            $wpda_database_columns_obj = (object) null;
+            $wpda_database_columns_obj->className = $columns[$i];
+            $wpda_database_columns_obj->name = $columns[$i];
+            $wpda_database_columns_obj->targets = $i;
+            $wpda_database_columns_obj->label = $column_label;
+            $wpda_database_columns .= json_encode( $wpda_database_columns_obj );
             if ( $i < count( $columns ) - 1 ) {
                 $wpda_database_columns .= ',';
             }
@@ -296,29 +302,49 @@ class WPDA_Data_Tables
         }
         
         $buttons = '[]';
+        $geomap = '';
+        $geo_search = '';
+        $geo_search_type = (object) null;
         $read_more_html = '';
         if ( 'false' === $pub_table_options_paging && null !== $json && isset( $json->serverSide ) && ("true" === $json->serverSide || true === $json->serverSide) ) {
             $read_more_html = "<div id=\"" . esc_attr( $table_name ) . "{$pub_id}_more_container\" class='wpda_more_container' >" . "<button id=\"" . esc_attr( $table_name ) . "{$pub_id}_more_button\" type='button' class='wpda_more_button dt-button'>SHOW MORE</button>" . "</div>";
         }
         $read_more = ( '' === $read_more_html ? 'false' : 'true' );
-        if ( 'false' === $pub_table_options_searching ) {
+        
+        if ( 'false' === $pub_table_options_searching || isset( $json->dom ) && (strpos( $json->dom, 'Q' ) !== false || strpos( $json->dom, 'P' ) !== false) ) {
             $header2 = '';
+        } else {
+            if ( isset( $json->dom ) && strpos( $json->dom, 'B' ) !== false && isset( $json->buttons ) && is_array( $json->buttons ) ) {
+                foreach ( $json->buttons as $button ) {
+                    
+                    if ( isset( $button->extend ) && 'searchPanes' === $button->extend ) {
+                        $header2 = '';
+                        // Search panes
+                    }
+                
+                }
+            }
         }
+        
         return $wpda_wpdataaccess_prepare_filter . "<table id=\"" . esc_attr( $table_name ) . "{$pub_id}\" class=\"display\" cellspacing=\"0\">" . "<thead>" . $this->show_header(
             $columns,
             $responsive,
             $responsive_cols,
             $pub_format,
             $hyperlinks,
-            $header2
+            $header2,
+            $json,
+            $geolocation
         ) . "</thead>" . "<tfoot>" . $this->show_header(
             $columns,
             $responsive,
             $responsive_cols,
             $pub_format,
             $hyperlinks,
-            ''
-        ) . "</tfoot>" . "</table>" . $read_more_html . "<script type='text/javascript'>" . "var {$columnsvar}_advanced_options = " . json_encode( $json ) . "; " . "var datatables_i18n_url = '" . plugins_url( '../assets/i18n/', __DIR__ ) . "';" . "var {$columnsvar} = [" . $wpda_database_columns . "];" . "jQuery(function () {" . "\twpda_datatables_ajax_call(" . "\t\t{$columnsvar}," . "\t\t\"" . esc_attr( $database ) . "\"," . "\t\t\"" . esc_attr( $table_name ) . "\"," . "\t\t\"" . esc_attr( $column_names ) . "\"," . "\t\t\"" . esc_attr( $responsive ) . "\"," . "\t\t\"" . esc_attr( $responsive_popup_title ) . "\"," . "\t\t\"" . esc_attr( $responsive_type ) . "\"," . "\t\t\"" . esc_attr( $responsive_icon ) . "\"," . "\t\t\"" . esc_attr( $language ) . "\"," . "\t\t\"" . htmlentities( $sql_orderby ) . "\"," . "\t\t{$pub_table_options_searching}," . "\t    {$pub_table_options_ordering}," . "\t\t{$pub_table_options_paging}," . "\t\t{$columnsvar}_advanced_options," . "\t\t{$pub_id}," . "\t\t\"" . esc_attr( $pub_responsive_modal_hyperlinks ) . "\"," . "\t\t[" . implode( ',', $hyperlink_positions ) . "]," . "\t\t\"" . esc_attr( $filter_field_name ) . "\"," . "\t\t\"" . esc_attr( $filter_field_value ) . "\"," . "\t\t\"" . esc_attr( $nl2br ) . "\"," . "\t\t{$buttons}," . "\t\t\"{$read_more}\"," . "\t\t\"" . (( $calc_estimate ? 'true' : 'false' )) . "\"" . "\t);" . "});" . "</script>";
+            '',
+            $json,
+            $geolocation
+        ) . "</tfoot>" . "</table>" . $read_more_html . "<script type='text/javascript'>" . "var {$columnsvar}_advanced_options = " . json_encode( $json ) . "; " . "var datatables_i18n_url = '" . plugins_url( '../assets/i18n/', __DIR__ ) . "';" . "var {$columnsvar} = [" . $wpda_database_columns . "];" . "var {$columnsvar}_geosearch_options = " . json_encode( $geo_search_type ) . "; " . "jQuery(function () {" . "\twpda_datatables_ajax_call(" . "\t\t{$columnsvar}," . "\t\t\"" . esc_attr( $database ) . "\"," . "\t\t\"" . esc_attr( $table_name ) . "\"," . "\t\t\"" . esc_attr( $column_names ) . "\"," . "\t\t\"" . esc_attr( $responsive ) . "\"," . "\t\t\"" . esc_attr( $responsive_popup_title ) . "\"," . "\t\t\"" . esc_attr( $responsive_type ) . "\"," . "\t\t\"" . esc_attr( $responsive_icon ) . "\"," . "\t\t\"" . esc_attr( $language ) . "\"," . "\t\t\"" . htmlentities( $sql_orderby ) . "\"," . "\t\t{$pub_table_options_searching}," . "\t    {$pub_table_options_ordering}," . "\t\t{$pub_table_options_paging}," . "\t\t{$columnsvar}_advanced_options," . "\t\t{$pub_id}," . "\t\t\"" . esc_attr( $pub_responsive_modal_hyperlinks ) . "\"," . "\t\t[" . implode( ',', $hyperlink_positions ) . "]," . "\t\t\"" . esc_attr( $filter_field_name ) . "\"," . "\t\t\"" . esc_attr( $filter_field_value ) . "\"," . "\t\t\"" . esc_attr( $nl2br ) . "\"," . "\t\t{$buttons}," . "\t\t\"{$read_more}\"," . "\t\t\"" . (( $calc_estimate ? 'true' : 'false' )) . "\"," . "\t\t\"" . trim( preg_replace( '/\\s+/', ' ', $geo_search ) ) . "\"," . "\t\t{$columnsvar}_geosearch_options," . "\t\t\"" . wp_create_nonce( 'wpda-publication-' . $table_name ) . "\"" . "\t);" . "});" . "</script>" . $geomap;
     }
     
     /**
@@ -330,6 +356,8 @@ class WPDA_Data_Tables
      * @param string $pub_format Formatting options.
      * @param array $hyperlinks Hyperlinks defined in column settings.
      * @param string $header2 Adds an extra header row if TRUE.
+     * @param mixed $json
+     * @param mixed $geolocation
      *
      * @return HTML output
      */
@@ -339,7 +367,9 @@ class WPDA_Data_Tables
         $responsive_cols,
         $pub_format,
         $hyperlinks,
-        $header2
+        $header2,
+        $json,
+        $geolocation
     )
     {
         $count = 0;
@@ -406,54 +436,83 @@ class WPDA_Data_Tables
      */
     public function get_data()
     {
+        $where = '';
+        $_filter = [];
         
         if ( !isset( $_REQUEST['database'] ) || !isset( $_REQUEST['table_name'] ) ) {
             // input var okay.
             // Database and table name must be set!
+            $this->create_empty_response();
             wp_die();
         } else {
             // Set table name
-            $table_name = sanitize_text_field( wp_unslash( $_REQUEST['table_name'] ) );
+            $table_name = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['table_name'] ) ) );
             // input var okay.
-            $database = sanitize_text_field( wp_unslash( $_REQUEST['database'] ) );
+            $database = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['database'] ) ) );
             // input var okay.
             $pub_id = sanitize_text_field( wp_unslash( $_REQUEST['pub_id'] ) );
             // input var okay.
             $nl2br = sanitize_text_field( wp_unslash( $_REQUEST['nl2br'] ) );
             // input var okay.
-            if ( strpos( $table_name, '.' ) ) {
+            $wpnonce = sanitize_text_field( wp_unslash( $_REQUEST['wpnonce'] ) );
+            // input var okay.
+            
+            if ( !wp_verify_nonce( $wpnonce, 'wpda-publication-' . $table_name ) ) {
+                $this->create_empty_response();
                 wp_die();
             }
+            
+            
+            if ( strpos( $table_name, '.' ) ) {
+                $this->create_empty_response();
+                wp_die();
+            }
+            
             
             if ( '' !== $pub_id ) {
                 // Add default where
                 $publication = WPDA_Publisher_Model::get_publication( $pub_id );
-                
                 if ( isset( $publication[0]['pub_default_where'] ) ) {
-                    $where = $publication[0]['pub_default_where'];
-                    if ( null === $where || '' === trim( $where ) ) {
-                        $where = '';
+                    if ( null !== $publication[0]['pub_default_where'] && '' !== trim( $publication[0]['pub_default_where'] ) ) {
+                        $where = $publication[0]['pub_default_where'];
                     }
-                } else {
-                    $where = '';
+                }
+                // Check publication schema and table name
+                
+                if ( $publication[0]['pub_schema_name'] !== $database || $publication[0]['pub_table_name'] !== $table_name ) {
+                    $this->create_empty_response();
+                    wp_die();
                 }
             
             } else {
-                $where = '';
+                // Check front-end access
+                $wpda_dictionary_checks = new WPDA_Dictionary_Exist( $database, $table_name );
+                
+                if ( !$wpda_dictionary_checks->table_exists( true, false ) ) {
+                    $this->create_empty_response();
+                    wp_die();
+                }
+            
             }
             
             if ( '' !== $where && 'where' !== strtolower( trim( substr( $where, 0, 5 ) ) ) ) {
                 $where = "where {$where}";
             }
+            if ( '' !== $where ) {
+                $_filter = [
+                    'filter_default' => $where,
+                ];
+            }
             $wpdadb = WPDADB::get_db_connection( $database );
             
             if ( null === $wpdadb ) {
+                $this->create_empty_response();
                 wp_die();
                 // Remote database not available
             }
             
             // Add field filters from shortcode
-            $filter_field_name = sanitize_text_field( wp_unslash( $_REQUEST['filter_field_name'] ) );
+            $filter_field_name = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['filter_field_name'] ) ) );
             // input var okay.
             $filter_field_value = sanitize_text_field( wp_unslash( $_REQUEST['filter_field_value'] ) );
             // input var okay.
@@ -470,7 +529,9 @@ class WPDA_Data_Tables
                         } else {
                             $where .= $wpdadb->prepare( " and `{$filter_field_name_array[$i]}` like %s ", [ $filter_field_value_array[$i] ] );
                         }
-                    
+                        
+                        $_filter['filter_field_name'] = $filter_field_name;
+                        $_filter['filter_field_value'] = $filter_field_value;
                     }
                 }
             }
@@ -479,6 +540,7 @@ class WPDA_Data_Tables
             $wpda_dictionary_checks = new WPDA_Dictionary_Exist( $database, $table_name );
             
             if ( !$wpda_dictionary_checks->table_exists( !is_admin(), false ) ) {
+                $this->create_empty_response();
                 wp_die();
                 // Table not found
             }
@@ -501,7 +563,7 @@ class WPDA_Data_Tables
             
             if ( isset( $_REQUEST['columns'] ) ) {
                 // Use columns from shortcode arguments.
-                $columns = sanitize_text_field( wp_unslash( $_REQUEST['columns'] ) );
+                $columns = str_replace( '`', '', sanitize_text_field( wp_unslash( $_REQUEST['columns'] ) ) );
                 // input var okay.
             }
             
@@ -521,10 +583,13 @@ class WPDA_Data_Tables
                 foreach ( $column_array as $column ) {
                     
                     if ( 'wpda_hyperlink_' !== substr( $column, 0, 15 ) ) {
+                        
                         if ( !$wpda_dictionary_checks->column_exists( $column ) ) {
                             // Column not found.
+                            $this->create_empty_response();
                             wp_die();
                         }
+                    
                     } else {
                         $has_dynamic_hyperlinks = true;
                     }
@@ -602,11 +667,11 @@ class WPDA_Data_Tables
                 foreach ( $orderby_args as $order_column ) {
                     // input var okay.
                     $column_index = $order_column['column'];
-                    $column_name = $column_array[$column_index];
+                    $column_name = str_replace( '`', '', $column_array[$column_index] );
                     $column_dir = $order_column['dir'];
                     $orderby_columns[] = "`{$column_name}` {$column_dir}";
                 }
-                $orderby = 'order by ' . implode( ',', $orderby_columns );
+                $orderby = implode( ',', $orderby_columns );
             } else {
                 // If ordering is disabled we still need to use the default order by (user cannot reorder)
                 
@@ -615,9 +680,14 @@ class WPDA_Data_Tables
                     $default_orderby_arr = explode( '|', $default_orderby );
                     $orderby_columns = [];
                     foreach ( $default_orderby_arr as $order ) {
-                        $orderby_columns[] = str_replace( ',', ' ', $order );
+                        $orderby_column_arr = explode( ',', $order );
+                        $orderby_column = '`' . str_replace( '`', '', $column_array[$orderby_column_arr[0]] ) . '`';
+                        if ( isset( $orderby_column_arr[1] ) ) {
+                            $orderby_column .= ' ' . $orderby_column_arr[1];
+                        }
+                        $orderby_columns[] = $orderby_column;
                     }
-                    $orderby = 'order by ' . implode( ',', $orderby_columns );
+                    $orderby = implode( ',', $orderby_columns );
                 }
             
             }
@@ -649,6 +719,15 @@ class WPDA_Data_Tables
             if ( '' !== $where ) {
                 $where = WPDA::substitute_environment_vars( $where );
             }
+            if ( '' !== $search_value ) {
+                $_filter['filter_dyn'] = $search_value;
+            }
+            foreach ( $_REQUEST as $key => $value ) {
+                if ( 'wpda_search_' === substr( $key, 0, 12 ) ) {
+                    $_filter['filter_args'][$key] = $value;
+                }
+            }
+            $geo_radius_col = '';
             // Execute query.
             $column_array = explode( ',', $columns );
             $images_array = [];
@@ -724,14 +803,17 @@ class WPDA_Data_Tables
                     $update[$col] = "'x' as {$col}";
                     $hyperlinks_column_index[$i] = substr( $col, 15 );
                 } else {
-                    $update[$col] = "`{$col}`";
+                    $update[$col] = '`' . str_replace( '`', '', $col ) . '`';
                 }
                 
                 $i++;
             }
             $column_array = $update;
-            $columns_backticks = implode( ',', $column_array );
-            $query = "select {$columns_backticks} from `{$wpdadb->dbname}`.`{$table_name}` {$where} {$orderby}";
+            $columns_backticks = implode( ',', $column_array ) . $geo_radius_col;
+            $query = "select {$columns_backticks} from `{$wpdadb->dbname}`.`{$table_name}` {$where}";
+            if ( '' !== $orderby ) {
+                $query .= " order by {$orderby} ";
+            }
             if ( -1 != $limit ) {
                 $query .= " limit {$limit} offset {$offset}";
             }
@@ -939,7 +1021,9 @@ class WPDA_Data_Tables
                 }
                 array_push( $rows_final, $row );
             }
-            $rows_estimate = WPDA::get_row_count_estimate( $database, $table_name, $table_settings );
+            $row_count_estimate = WPDA::get_row_count_estimate( $database, $table_name, $table_settings );
+            $rows_estimate = $row_count_estimate['row_count'];
+            $do_real_count = $row_count_estimate['do_real_count'];
             
             if ( 'more' === $publication_mode ) {
                 // Use estimate row count
@@ -947,13 +1031,13 @@ class WPDA_Data_Tables
                 $count_table_filtered = $rows_estimate;
             } else {
                 
-                if ( $rows_estimate > -1 ) {
+                if ( !$do_real_count ) {
                     // Use estimate row count
                     $count_table = $rows_estimate;
                 } else {
                     // Count rows in table = real row count
-                    $query = "select count(*) from `{$wpdadb->dbname}`.`{$table_name}`";
-                    $count_rows = $wpdadb->get_results( $query, 'ARRAY_N' );
+                    $query2 = "select count(*) from `{$wpdadb->dbname}`.`{$table_name}`";
+                    $count_rows = $wpdadb->get_results( $query2, 'ARRAY_N' );
                     // WPCS: unprepared SQL OK; db call ok; no-cache ok.
                     $count_table = $count_rows[0][0];
                     // Number of rows in table.
@@ -962,8 +1046,8 @@ class WPDA_Data_Tables
                 
                 if ( '' !== $where ) {
                     // Count rows in selection (only necessary if a search criteria was entered).
-                    $query = "select count(*) from `{$wpdadb->dbname}`.`{$table_name}` {$where}";
-                    $count_rows_filtered = $wpdadb->get_results( $query, 'ARRAY_N' );
+                    $query3 = "select count(*) from `{$wpdadb->dbname}`.`{$table_name}` {$where}";
+                    $count_rows_filtered = $wpdadb->get_results( $query3, 'ARRAY_N' );
                     // WPCS: unprepared SQL OK; db call ok; no-cache ok.
                     $count_table_filtered = $count_rows_filtered[0][0];
                     // Number of rows in table.
@@ -980,6 +1064,16 @@ class WPDA_Data_Tables
             $obj->recordsTotal = $count_table;
             $obj->recordsFiltered = $count_table_filtered;
             $obj->data = $rows_final;
+            if ( '' !== $_filter ) {
+                $obj->msg = $_filter;
+            }
+            if ( 'on' === WPDA::get_option( WPDA::OPTION_PLUGIN_DEBUG ) ) {
+                $obj->debug = [
+                    'columns_backticks' => $columns_backticks,
+                    'query'             => $query,
+                    'orderby'           => $orderby,
+                ];
+            }
             // Send header
             header( 'Content-type: application/json' );
             header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
@@ -991,6 +1085,16 @@ class WPDA_Data_Tables
         }
         
         wp_die();
+    }
+    
+    private function create_empty_response()
+    {
+        $obj = (object) null;
+        $obj->draw = 0;
+        $obj->recordsTotal = 0;
+        $obj->recordsFiltered = 0;
+        $obj->data = [];
+        return $obj;
     }
 
 }

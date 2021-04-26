@@ -28,7 +28,7 @@ namespace WPDataAccess\CSV_Files {
 			<div class="wrap">
 				<h1 class="wp-heading-inline">
 					<span><?php echo __( 'Import CSV ' ); ?></span>
-					<a href="https://wpdataaccess.com/docs/documentation/data-explorer/import-csv-file/"
+					<a href="https://wpdataaccess.com/docs/documentation/data-explorer/imports-sql-csv/"
 					   target="_blank"
 					   class="wpda_tooltip"
 					   title="Plugin Help - open a new tab or window">
@@ -266,6 +266,7 @@ namespace WPDataAccess\CSV_Files {
 				$has_header_columns = isset( $mapping['settings']['has_header_columns'] ) ? $mapping['settings']['has_header_columns'] : true;
 				$schema_name        = isset( $mapping['database']['schema_name'] ) ? esc_attr( $mapping['database']['schema_name'] ) : '';
 				$table_name         = isset( $mapping['database']['table_name'] ) ? esc_attr( $mapping['database']['table_name'] ) : '';
+				$table_name         = str_replace( '`', '', $table_name );
 				$table_columns      = isset( $mapping['columns'] ) ? $mapping['columns'] : [];
 
 				if ( 'on' === $truncate_table ) {

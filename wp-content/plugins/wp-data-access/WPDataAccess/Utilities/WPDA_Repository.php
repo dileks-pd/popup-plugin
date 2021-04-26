@@ -204,7 +204,48 @@ namespace WPDataAccess\Utilities {
 			}
 
 			$this->cleanup();
+			$this->remove_old_backups();
 
+			$wpdb->suppress_errors( $suppress );
+		}
+
+		public function remove_old_backups() {
+			if ( 'on' === WPDA::get_option( WPDA::OPTION_MR_KEEP_BACKUP_TABLES ) ) {
+				$backup_tables_kept = WPDA::get_option( WPDA::OPTION_MR_BACKUP_TABLES_KEPT );
+				$base_table_name    = WPDA_Publisher_Model::get_base_table_name() . WPDA_Restore_Repository::BACKUP_TABLE_EXTENSION;
+
+				global $wpdb;
+				$rows = $wpdb->get_results(
+					$wpdb->prepare(
+						"
+							select table_name as table_name
+							from   information_schema.tables
+							where  table_schema = %s
+							  and  table_name like %s
+							order by 1 desc
+						",
+						[
+							$wpdb->dbname,
+							"{$base_table_name}%"
+						]
+					), 'ARRAY_A'
+				);
+
+				for ( $i = $backup_tables_kept; $i < sizeof( $rows ); $i ++ ) {
+					$backup_date = substr( $rows[ $i ]['table_name'], strlen( $base_table_name ) );
+					$this->remove_backup( $backup_date );
+				}
+			}
+		}
+
+		public function remove_backup( $backup_date ) {
+			global $wpdb;
+
+			$suppress  = $wpdb->suppress_errors( true );
+			$extension = WPDA_Restore_Repository::BACKUP_TABLE_EXTENSION;
+			foreach ( self::CREATE_TABLE as $key => $value ) {
+				$wpdb->query( "drop table `{$wpdb->prefix}{$key}{$extension}{$backup_date}`" );
+			}
 			$wpdb->suppress_errors( $suppress );
 		}
 

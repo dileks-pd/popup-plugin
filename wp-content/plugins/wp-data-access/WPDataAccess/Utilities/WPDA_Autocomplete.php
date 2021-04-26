@@ -84,11 +84,11 @@ namespace WPDataAccess\Utilities {
 			}
 
 			$query  = "
-						select `{$wpda_lookup_label_column}` as value,
-						       `{$wpda_lookup_label_column}` as label,
-						       `{$wpda_target_column_name}` as lookup
-						from `{$wpda_target_table_name}`
-						where `{$wpda_lookup_label_column}` like %s
+						select `" . str_replace( '`', '', $wpda_lookup_label_column ) . "` as value,
+						       `" . str_replace( '`', '', $wpda_lookup_label_column ) . "` as label,
+						       `" . str_replace( '`', '', $wpda_target_column_name ) . "` as lookup
+						from `" . str_replace( '`', '', $wpda_target_table_name ) . "`
+						where `" . str_replace( '`', '', $wpda_lookup_label_column ) . "` like %s
 					";
 
 			return $wpdadb->get_results(
@@ -117,9 +117,9 @@ namespace WPDataAccess\Utilities {
 			}
 
 			$query  = "
-				select `{$lookup_column_name}` as lookup
-				from `{$table_name}`
-				where `{$column_name}` = %s
+				select `" . str_replace( '`', '', $lookup_column_name ) . "` as lookup
+				from `" . str_replace( '`', '', $table_name ) . "`
+				where `" . str_replace( '`', '', $column_name ) . "` = %s
 			";
 
 			$rows = $wpdadb->get_results(

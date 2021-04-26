@@ -1,8 +1,41 @@
 ### ChangeLog for WP Data Access
 
+#### 4.2.5 / 2021-04-21
+
+Updated: All documentation links
+Added: Demo and tutorial links to Data Publisher and Data Projects
+Added: Row count estimation support for views (Charles)
+Added: Geo range search to Data Publisher (Nicola)
+Added: Fulltext search support to views (Steve and Charles)
+Added: Maximum backups versions saved to manage repository settings (default = 3)
+Added: Search panes to Data Publisher premium (works only client side)
+Added: Custom search builder to Data Publisher premium (works only client side)
+Added: Row grouping to Data Publisher premium
+Added: Support dictionary checks and reconcilation for remote databases in Data Designer (Alex)
+Added: Argument map_radius to geolocation map to hide range filter
+Added: Some tokens to improve security
+Improved: Help links on plugin pages 
+Improved: One debug option for all plugin features
+Improved: Column-specific search needs to be added in two steps (Alex)
+Improved: Data Publisher loads publication deferred (performance optimation)
+Fixed: Autocomplete not working when parent settings less enabled
+Fixed: Vulnerability filter column name (Krzysztof)
+Fixed: Geolocation time out
+Fixed: Default order by not working on first column
+Fixed: Disable ordering on hyperlink columns in Data Explorer
+Fixed: Data type tinyint(1) not shown as checkbox in Date Forms (Alex)
+Fixed: Data type tinyint(1) returns tinyiny(3) on reverse engineering
+Fixed: Estimated row count for views returns null
+Fixed: Data Designer adds remote views to drop down list reverse engineering (Charles, busterland)   
+Fixed: Manual zoom not working
+Fixed: Inline listbox not shown/updated correctly (Alex) 
+Fixed: Row export remote tables return forbidden (Alex)
+Fixed: Function responsiveHidden() not found in jQuery DataTables library (Moreno)
+Fixed: Listbox not ordered (mcreighton)
+
 #### 4.2.1 / 2021-03-28
 
-Fixed: List of values not working
+Fixed: Lookups not working (Linda)
 Fixed: Field content truncated when entering a quote during inline editing (Luis)
 
 #### 4.2.0 / 2021-03-25

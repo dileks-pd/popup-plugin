@@ -484,7 +484,7 @@ class WP_Data_Access_Admin
         }
         $user_has_role = false;
         foreach ( $user_roles as $user_role ) {
-            if ( false !== strpos( $publication_roles, $user_role ) ) {
+            if ( false !== stripos( $publication_roles, $user_role ) ) {
                 $user_has_role = true;
             }
         }
@@ -600,7 +600,7 @@ class WP_Data_Access_Admin
 				<span><?php 
         echo  $this->title_submenu_designer ;
         ?></span>
-				<a href="https://wpdataaccess.com/docs/documentation/data-designer/" target="_blank" class="wpda_tooltip" title="Plugin Help - opens in a new tab or window">
+				<a href="https://wpdataaccess.com/docs/documentation/data-designer/getting-started/" target="_blank" class="wpda_tooltip" title="Plugin Help - opens in a new tab or window">
 					<span class="dashicons dashicons-editor-help"
 						  style="text-decoration:none;vertical-align:top;font-size:30px;">
 					</span></a>
@@ -635,7 +635,7 @@ class WP_Data_Access_Admin
 				<span><?php 
         echo  $this->title_submenu_publisher ;
         ?></span>
-				<a href="https://wpdataaccess.com/docs/documentation/data-publisher/" target="_blank" class="wpda_tooltip" title="Plugin Help - opens in a new tab or window">
+				<a href="https://wpdataaccess.com/docs/documentation/data-publisher/data-publisher-getting-started/" target="_blank" class="wpda_tooltip" title="Plugin Help - opens in a new tab or window">
 					<span class="dashicons dashicons-editor-help"
 						  style="text-decoration:none;vertical-align:top;font-size:30px;">
 					</span></a>

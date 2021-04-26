@@ -166,8 +166,8 @@ namespace WPDataProjects\Simple_Form {
 							$source_column_name = $lookup->source_column_name[0];
 							if ( $source_column_name === $item->get_item_name() ) {
 								// Add lookup listbox
-								$target_column_name = $lookup->target_column_name[0];
-								$target_table_name  = $lookup->target_table_name;
+								$target_column_name = str_replace( '`', '', $lookup->target_column_name[0] );
+								$target_table_name  = str_replace( '`', '', $lookup->target_table_name );
 
 								if ( isset( $lookup->target_schema_name ) ) {
 									$target_schema_name = $lookup->target_schema_name;
@@ -203,10 +203,10 @@ namespace WPDataProjects\Simple_Form {
 											$lookup_sql_table_name = "`{$wpdadb->dbname}`.`$target_table_name`";
 										}
 										$lookup_sql =
-											"select `{$lookup_column_name[ $source_column_name ]}`, `$target_column_name` " .
+											"select `" . str_replace( '`', '', $lookup_column_name[ $source_column_name ] ) . "`, `$target_column_name` " .
 											"from $lookup_sql_table_name " .
 											$where .
-											"order by `{$lookup_column_name[ $source_column_name ]}`, `$target_column_name`";
+											"order by `" . str_replace( '`', '', $lookup_column_name[ $source_column_name ] ) . "`, `$target_column_name`";
 
 										$rows = $wpdadb->get_results( $lookup_sql, 'ARRAY_A' );
 

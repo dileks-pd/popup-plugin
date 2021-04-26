@@ -22,11 +22,11 @@ function add_popup_form( $title ) {
         <div id="overlay">
           <form id="modal-container" method="post" action="popup-plugin.php">
           <!-- <form id="modal-container" method="post" action="/"> -->
-            <label for="input1">Поле1</label>
+            <label for="input1">Ваше имя</label>
             <input type="text" name='name_col' id="smth">
-            <label for="input2">Поле2</label>
+            <label for="input2">Ваш телефон</label>
             <input type="text" name='phone_col' id="smth"> 
-            <label for="input3">Поле3</label>
+            <label for="input3">Ваш email</label>
             <input type="text" name='email_col' id="smth">
             <button type="submit">Отправить</button>
           </form>

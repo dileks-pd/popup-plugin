@@ -521,3 +521,7 @@ table.wpda-restore-repository-backup {
     padding: 2px 5px;
     text-align: left;
 }
+
+.wpda_autocomplete_key {
+    display: contents;
+}
